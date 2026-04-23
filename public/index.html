@@ -80,7 +80,7 @@
   .cmp-mid { color:#eab308; }
   .cmp-bad { color:#f97316; }
   .cmp-low { color:var(--mu); }
-  .tg-s { color:#22d3ee; font-weight:700; }
+  .tg-s { background:#164e63; color:#a5f3fc; }
   .tg-p { color:#fbbf24; font-weight:700; }
 
   /* Legend */
@@ -306,7 +306,7 @@ function draw(){
       rides.forEach(([n,m])=>{
         const lv=liveRide(n,m);
         const slv=singleRide(m);
-        const singleBadge=m.sr?`<span class="lv tg-s">Single${slv&&slv.is_open?` ${slv.wait_time} мин`:''}</span>`:'';
+        const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
         let badge='<span style="font-size:9px;color:var(--mu)">—</span>';
         if(S.ld)badge='<span style="font-size:9px;color:var(--mu)">⏳</span>';
         else if(lv){
