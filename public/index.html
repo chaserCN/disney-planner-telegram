@@ -570,6 +570,7 @@ function mvInit(){
   let pts=new Map(), startDist=0, startScale=1, panStart=null, moved=false, downTarget=null;
 
   wrap.addEventListener("pointerdown",e=>{
+    if(e.target.closest(".mv-tool")||e.target.closest(".mv-tools"))return;
     pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pts.size===1){
       moved=false;
@@ -615,6 +616,7 @@ function mvInit(){
   });
 
   wrap.addEventListener("pointerup",e=>{
+    if(!pts.has(e.pointerId))return;
     if(!moved&&pts.size===1){
       const closeBtn=e.target.closest("[data-close]");
       const popup=e.target.closest(".mv-popup");
@@ -790,7 +792,7 @@ function draw(){
 
     h+=`<div class="mv-wrap" id="mv-wrap">`;
     h+=`<div class="mv-legend">`+Object.entries(T).map(([k,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.stars}</span>`).join("")+`</div>`;
-    h+=`<div class="mv-tools"><button class="mv-tool" onclick="requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
+    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="mv-scene" id="mv-scene">`;
     h+=`<img class="mv-img" id="mv-img" src="map.jpg" ondragstart="return false">`;
