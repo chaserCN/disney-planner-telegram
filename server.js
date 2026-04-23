@@ -15,12 +15,15 @@ const COLLECT_START_MINUTES = 9 * 60 + 30;
 const COLLECT_END_MINUTES = 22 * 60 + 40;
 const ALERT_START_MINUTES = 9 * 60 + 30;
 const ALERT_END_MINUTES = 22 * 60 + 40;
-const ALERT_CURRENT_MAX_WAIT = 10;
-const ALERT_BASELINE_MIN_WAIT = 30;
-const ALERT_MIN_BASELINE_SAMPLES = 24;
+const ALERT_CURRENT_MAX_WAIT = 20;
+const ALERT_BASELINE_MIN_WAIT = 15;
+const ALERT_MIN_DROP_RATIO = 3;
+const ALERT_WAIT_FLOOR = 5;
+const ALERT_MIN_BASELINE_SAMPLES = 12;
 const ALERT_DEBOUNCE_MS = 60 * 60 * 1000;
 const ALERT_BURST_WINDOW_MS = 10 * 60 * 1000;
 const ALERT_BURST_LIMIT = 3;
+const ALERT_TIER_WEIGHT = { S: 3, A: 2, B: 1 };
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
@@ -142,7 +145,7 @@ const rideByIdIndex = new Map();
 for (const [name, meta] of Object.entries(RIDES)) {
   rideByIdIndex.set(meta.id, { name, ...meta });
 }
-const ALERT_TIER_SET = new Set(["S", "A"]);
+const ALERT_TIER_SET = new Set(["S", "A", "B"]);
 
 function percentileFromSorted(sortedValues, p) {
   if (!sortedValues.length) return null;
@@ -179,10 +182,15 @@ async function checkAndSendAlerts(paris, livePerRideId) {
     const median = percentileFromSorted(waits, 0.5);
     if (median === null || median < ALERT_BASELINE_MIN_WAIT) continue;
 
-    candidates.push({ rideId, meta, current: live.wait_time, median });
+    const dropRatio = median / Math.max(live.wait_time, ALERT_WAIT_FLOOR);
+    if (dropRatio < ALERT_MIN_DROP_RATIO) continue;
+
+    const priority = dropRatio * (ALERT_TIER_WEIGHT[meta.t] || 1);
+    candidates.push({ rideId, meta, current: live.wait_time, median, dropRatio, priority });
   }
 
   if (!candidates.length) return;
+  candidates.sort((a, b) => b.priority - a.priority);
 
   for (const sub of subscribers) {
     const chatId = sub.chat_id;
@@ -201,9 +209,10 @@ async function checkAndSendAlerts(paris, livePerRideId) {
 }
 
 async function sendAlert(chatId, c) {
+  const ratioText = `в ${c.dropRatio >= 10 ? Math.round(c.dropRatio) : c.dropRatio.toFixed(1)}× короче`;
   const text =
     `🎯 *${escapeMarkdown(c.meta.name)}* — ${c.current} мин\n` +
-    `Обычно в это время ~${c.median} мин`;
+    `Обычно в это время ~${c.median} мин (${ratioText})`;
 
   const keyboard = appUrl
     ? { inline_keyboard: [[{ text: "🗺️ Открыть планировщик", web_app: { url: appUrl } }]] }
