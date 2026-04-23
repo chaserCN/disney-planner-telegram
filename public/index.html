@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Disney Paris Planner</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --bg: var(--tg-theme-bg-color, #0b0e18);
+    --cd: var(--tg-theme-secondary-bg-color, #131827);
+    --tx: var(--tg-theme-text-color, #e2e8f0);
+    --mu: var(--tg-theme-hint-color, #64748b);
+    --ac: var(--tg-theme-button-color, #6366f1);
+    --ac-tx: var(--tg-theme-button-text-color, #fff);
+    --lnk: var(--tg-theme-link-color, #6366f1);
+    --bd: var(--tg-theme-secondary-bg-color, #1e293b);
+    --dlp: #f472b6; --st: #60a5fa;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  html, body { 
+    font-family: 'DM Sans','Segoe UI',system-ui,sans-serif; 
+    background: var(--bg); color: var(--tx); 
+    min-height: 100vh; overflow-x: hidden;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bot);
+  }
+  .app { max-width: 520px; margin:0 auto; padding: 10px 14px 90px; }
+
+  /* Header */
+  .hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; padding-top:2px; }
+  .hdr h1 { font-size:18px; font-weight:800; letter-spacing:0; }
+  .live-mini { font-size:10px; color:var(--mu); white-space:nowrap; font-weight:700; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:2px; background:var(--cd); border-radius:12px; padding:3px; margin-bottom:12px; position:sticky; top:0; z-index:10; }
+  .tb { flex:1; padding:10px 0; border:none; border-radius:10px; font-weight:700; font-size:12px; font-family:inherit; background:transparent; color:var(--mu); transition:all .15s; cursor:pointer; }
+  .tb.on { background:var(--ac); color:var(--ac-tx); }
+
+  /* Pills */
+  .flt { display:flex; gap:4px; margin-bottom:10px; flex-wrap:wrap; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .pl { padding:6px 12px; border-radius:99px; font-size:11px; font-weight:600; border:1px solid var(--bd); background:transparent; color:var(--mu); font-family:inherit; white-space:nowrap; flex-shrink:0; cursor:pointer; transition:all .12s; }
+  .pl.on { border-color:var(--ac); background:color-mix(in srgb, var(--ac) 15%, transparent); color:var(--ac-tx); }
+  .pl.on-d { border-color:var(--dlp); background:rgba(244,114,176,.12); color:var(--dlp); }
+  .pl.on-s { border-color:var(--st); background:rgba(96,165,250,.12); color:var(--st); }
+
+  /* Park section */
+  .ps { margin-bottom:14px; }
+  .psh { display:flex; align-items:center; gap:6px; padding-bottom:5px; margin-bottom:6px; }
+  .psh.dlp { border-bottom:2px solid rgba(244,114,176,.15); }
+  .psh.st { border-bottom:2px solid rgba(96,165,250,.15); }
+  .psh .em { font-size:14px; }
+  .psh .nm { font-weight:800; font-size:12px; }
+  .psh.dlp .nm { color:var(--dlp); }
+  .psh.st .nm { color:var(--st); }
+  .psh .hr { font-size:9px; color:var(--mu); }
+
+  /* Ride card — touch friendly */
+  .rc { display:flex; align-items:center; gap:8px; padding:10px; background:var(--cd); border-radius:10px; margin-bottom:5px; min-height:54px; }
+  .rc.dlp { border-left:3px solid var(--dlp); }
+  .rc.st { border-left:3px solid var(--st); }
+  .rc .ic { font-size:20px; line-height:1; flex-shrink:0; width:28px; text-align:center; }
+  .rc .bd { flex:1; min-width:0; }
+  .rc .rn { font-weight:700; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rc .rm { font-size:9px; color:var(--mu); margin-top:1px; display:flex; gap:3px; flex-wrap:wrap; align-items:center; }
+  .rc .bh { font-size:9px; color:var(--mu); }
+  .rc .rt { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
+  .tier { font-size:9px; font-weight:800; padding:1px 6px; border-radius:3px; white-space:nowrap; letter-spacing:0; }
+  .t-S { background:#facc15; color:#1a1a00; }
+  .t-A { background:#a78bfa; color:#fff; }
+  .t-B { background:#4ade80; color:#052e16; }
+  .t-C { background:#94a3b8; color:#1e293b; }
+  .lv { font-size:10px; font-weight:700; padding:2px 7px; border-radius:99px; }
+  .lv-off { background:#334155; color:#94a3b8; font-size:9px; }
+  .bh .cmp { font-weight:700; }
+  .cmp-good { color:#22c55e; }
+  .cmp-mid { color:#eab308; }
+  .cmp-bad { color:#f97316; }
+  .cmp-low { color:var(--mu); }
+  .tg-s { color:#22d3ee; font-weight:700; }
+  .tg-p { color:#fbbf24; font-weight:700; }
+
+  /* Legend */
+  .lgd { padding:8px; background:var(--cd); border-radius:8px; display:flex; gap:8px; flex-wrap:wrap; font-size:9px; color:var(--mu); margin-top:6px; }
+  .lgd .d { width:10px; height:10px; border-radius:2px; display:inline-block; vertical-align:middle; margin-right:2px; }
+
+  /* Heatmap */
+  .hm-w { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -14px; padding:0 14px; }
+  .hm-i { min-width:440px; }
+  .hm-h { display:flex; gap:1px; margin-bottom:2px; }
+  .hm-h .l { width:110px; flex-shrink:0; }
+  .hm-h .h { flex:1; font-size:7px; text-align:center; color:var(--mu); min-width:14px; }
+  .hm-st { font-size:9px; font-weight:700; padding:3px 0; }
+  .hm-st.dlp { color:var(--dlp); border-bottom:1px solid rgba(244,114,176,.15); }
+  .hm-st.st { color:var(--st); border-bottom:1px solid rgba(96,165,250,.15); }
+  .hm-r { display:flex; align-items:center; gap:1px; padding:1px 0; }
+  .hm-r .l { width:110px; font-size:9px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+  .hm-r .c { flex:1; height:22px; min-width:14px; border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:7px; font-weight:700; }
+  .hm-ins { margin-top:8px; padding:10px; background:var(--cd); border-radius:10px; font-size:10px; color:var(--mu); line-height:1.6; }
+
+  /* Plan */
+  .stb { width:100%; padding:10px; border-radius:10px; border:1.5px solid var(--bd); background:var(--cd); color:var(--tx); text-align:left; margin-bottom:5px; font-family:inherit; cursor:pointer; transition:all .12s; }
+  .stb.on { border-color:var(--ac); background:color-mix(in srgb, var(--ac) 8%, transparent); }
+  .stb .inn { display:flex; align-items:center; gap:6px; }
+  .stb .em { font-size:18px; }
+  .stb .tt { font-weight:700; font-size:12px; }
+  .stb .ss { font-size:9px; color:var(--mu); margin-top:1px; }
+  .stb .ck { margin-left:auto; color:var(--ac); font-weight:800; font-size:14px; }
+
+  .pbn { padding:10px 12px; margin:12px 0; border-radius:12px; background:linear-gradient(135deg,#6366f1,#8b5cf6,#a855f7); color:#fff; }
+  .pbn .tt { font-size:13px; font-weight:800; }
+  .pbn .st { font-size:10px; margin-top:3px; opacity:.85; }
+
+  .bl { padding:10px 12px; background:var(--cd); border-radius:10px; margin-bottom:6px; }
+  .bl.tr { padding:7px 10px; background:transparent; border:1px dashed #475569; }
+  .bl.d { border-left:3px solid var(--dlp); }
+  .bl.s { border-left:3px solid var(--st); }
+  .bl-h { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:5px; }
+  .bl-h .lf { display:flex; align-items:center; gap:6px; }
+  .bl-h .ic { font-size:18px; }
+  .bl-h .ti { font-size:12px; }
+  .bl-lb { font-weight:700; font-size:12px; }
+  .bl-tm { font-size:10px; color:var(--mu); }
+  .bl-rd { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:4px; }
+  .bl-tg { font-size:9px; padding:2px 6px; border-radius:4px; font-weight:600; }
+  .bl-nt { font-size:10px; color:var(--mu); line-height:1.4; }
+  .pbdg { font-size:9px; padding:2px 7px; border-radius:99px; font-weight:700; white-space:nowrap; }
+  .pbdg.d { background:rgba(244,114,176,.12); color:var(--dlp); border:1px solid rgba(244,114,176,.2); }
+  .pbdg.s { background:rgba(96,165,250,.12); color:var(--st); border:1px solid rgba(96,165,250,.2); }
+
+  .tips { margin-top:14px; padding:12px; background:var(--cd); border-radius:10px; }
+  .tips h3 { font-size:12px; font-weight:700; margin-bottom:6px; }
+  .tips p { font-size:10px; color:var(--mu); line-height:1.6; }
+  .tips b { color:var(--tx); }
+
+  /* Status bar */
+  .sbar { 
+    position:fixed; bottom:0; left:0; right:0; 
+    padding:8px 14px calc(8px + var(--safe-bot)); 
+    background:var(--cd); border-top:1px solid var(--bd);
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:10px; color:var(--mu); z-index:20;
+  }
+  .sbar button { 
+    padding:8px 16px; border-radius:99px; border:none; 
+    background:var(--ac); color:var(--ac-tx); 
+    font-weight:700; font-size:11px; font-family:inherit; cursor:pointer;
+  }
+  .sbar button:disabled { opacity:.5; }
+  .sbar .err { color:#f97316; font-size:9px; }
+
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+// ── Telegram WebApp init ────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.disableVerticalSwipes?.();
+}
+
+// ── Data ────────────────────────────────────────────────────────────────────
+const R = {
+  "Big Thunder Mountain":       {id:25,t:"S",tp:"горки",p:"d",l:"Frontierland",bh:[9,10,20,21],ap:70,i:"⛰️",sr:0,pa:1},
+  "Hyperspace Mountain":        {id:8,srid:7278,t:"S",tp:"горки",p:"d",l:"Discoveryland",bh:[9,10,21,22],ap:60,i:"🚀",sr:1,pa:1},
+  "Frozen Ever After":          {id:15413,t:"S",tp:"лодка",p:"s",l:"World of Frozen",bh:[9,10,20],ap:80,i:"❄️",sr:0,pa:1},
+  "Peter Pan's Flight":         {id:22,t:"S",tp:"тёмный",p:"d",l:"Fantasyland",bh:[9,21,22],ap:75,i:"🧚",sr:0,pa:1},
+  "Phantom Manor":              {id:26,t:"A",tp:"тёмный",p:"d",l:"Frontierland",bh:[9,10,12,13,20],ap:45,i:"👻",sr:0,pa:0},
+  "Pirates of the Caribbean":   {id:3,t:"A",tp:"лодка",p:"d",l:"Adventureland",bh:[9,10,13,14,20],ap:40,i:"🏴‍☠️",sr:0,pa:1},
+  "Indiana Jones":              {id:2,srid:7306,t:"B",tp:"горки",p:"d",l:"Adventureland",bh:[9,10,20,21],ap:50,i:"🏺",sr:1,pa:0},
+  "Buzz Lightyear Laser Blast": {id:5,t:"B",tp:"интерактив",p:"d",l:"Discoveryland",bh:[9,10,13,20],ap:40,i:"🔫",sr:0,pa:1},
+  "Star Tours":                 {id:9,t:"B",tp:"симулятор",p:"d",l:"Discoveryland",bh:[10,11,14,20],ap:30,i:"⭐",sr:0,pa:1},
+  "It's a Small World":         {id:19,t:"B",tp:"лодка",p:"d",l:"Fantasyland",bh:[12,13,14,15],ap:20,i:"🌍",sr:0,pa:0},
+  "Autopia":                    {id:4,t:"C",tp:"вождение",p:"d",l:"Discoveryland",bh:[10,11,19,20],ap:35,i:"🚗",sr:0,pa:1},
+  "Orbitron":                   {id:7,t:"C",tp:"спиннер",p:"d",l:"Discoveryland",bh:[10,11,20],ap:30,i:"🛸",sr:0,pa:1},
+  "Dumbo":                      {id:18,t:"C",tp:"спиннер",p:"d",l:"Fantasyland",bh:[9,10,19,20],ap:30,i:"🐘",sr:0,pa:0},
+  "Crush's Coaster":            {id:32,srid:7277,t:"S",tp:"горки",p:"s",l:"World of Pixar",bh:[9,21],ap:90,i:"🐢",sr:1,pa:1},
+  "Tower of Terror":            {id:40,t:"S",tp:"башня",p:"s",l:"Production Courtyard",bh:[9,10,20,21],ap:55,i:"🏚️",sr:1,pa:1},
+  "Ratatouille":                {id:37,srid:7279,t:"S",tp:"тёмный",p:"s",l:"World of Pixar",bh:[9,10,21,22],ap:65,i:"🐀",sr:1,pa:1},
+  "Avengers Assemble":          {id:10848,srid:10849,t:"A",tp:"горки",p:"s",l:"Avengers Campus",bh:[9,10,20,21],ap:50,i:"🦸",sr:1,pa:1},
+  "Spider-Man W.E.B.":          {id:10845,srid:10846,t:"B",tp:"интерактив",p:"s",l:"Avengers Campus",bh:[10,14,20],ap:35,i:"🕷️",sr:1,pa:0},
+  "Cars Road Trip":             {id:29,t:"B",tp:"прогулка",p:"s",l:"World of Pixar",bh:[10,11,14,15],ap:30,i:"🏎️",sr:0,pa:1},
+  "Toy Soldiers":               {id:35,srid:7281,t:"C",tp:"башня",p:"s",l:"World of Pixar",bh:[10,11,15,16],ap:25,i:"🪖",sr:1,pa:0},
+  "RC Racer":                   {id:34,srid:7280,t:"C",tp:"горки",p:"s",l:"World of Pixar",bh:[10,11,19],ap:30,i:"🏁",sr:1,pa:0},
+};
+
+const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"9:30–23:00"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"9:30–21:00"} };
+const T = {S:{bg:"#facc15",tx:"#1a1a00",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#4ade80",tx:"#052e16",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
+
+const STR = [
+  {id:"s1",tt:"Adventure World → Главный",sub:"Frozen утром, замок и фейерверк вечером. 1 переход",em:"🎬→🏰",
+    bl:[
+      {lb:"Старт Adventure World",tm:"9:30–12:30",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille","Spider-Man W.E.B."],nt:"Frozen или Crush's первыми — днём у них самые длинные очереди"},
+      {lb:"Обед",tm:"12:30–13:30",pk:"s",ic:"🍕",rd:[],nt:"Пик очередей — ешьте! Bistrot Chez Rémy"},
+      {lb:"После обеда",tm:"13:30–16:00",pk:"s",ic:"☀️",rd:["Cars Road Trip","Toy Soldiers","RC Racer","Avengers Assemble"],nt:"Спокойнее, фото и любимые зоны без спешки"},
+      {lb:"Переход",tm:"16:00–16:15",pk:"x",ic:"🚶",rd:[],nt:"~15 мин. Единственный переход!"},
+      {lb:"Вечер в Главном парке",tm:"16:15–20:00",pk:"d",ic:"🌆",rd:["Big Thunder Mountain","Phantom Manor","Pirates of the Caribbean","Indiana Jones"],nt:"Очереди ↓ после 17:00. Парад ещё снижает!"},
+      {lb:"Ночь в Главном парке",tm:"20:00–23:00",pk:"d",ic:"🌙",rd:["Hyperspace Mountain","Peter Pan's Flight","Star Tours","Buzz Lightyear Laser Blast"],nt:"Лучшие аттракционы часто короче вечером! Фейерверк ~22:30"},
+    ]},
+  {id:"s2",tt:"Главный → Adventure World → Главный",sub:"Замок утром, Frozen днём. 2 перехода",em:"🏰→🎬→🏰",
+    bl:[
+      {lb:"Старт в Главном парке",tm:"9:30–12:30",pk:"d",ic:"🌅",rd:["Peter Pan's Flight","Big Thunder Mountain","Pirates of the Caribbean","Buzz Lightyear Laser Blast"],nt:"Начать с волшебных хитов около замка"},
+      {lb:"Переход",tm:"12:30–12:45",pk:"x",ic:"🚶",rd:[],nt:"Обед в Adventure World"},
+      {lb:"День в Adventure World",tm:"13:00–18:00",pk:"s",ic:"☀️",rd:["Frozen Ever After","Ratatouille","Crush's Coaster","Spider-Man W.E.B.","Cars Road Trip"],nt:"Frozen и Ratatouille — самые семейные цели этого блока"},
+      {lb:"Назад",tm:"18:00–18:15",pk:"x",ic:"🚶",rd:[],nt:"Последний переход"},
+      {lb:"Вечер в Главном парке",tm:"18:15–23:00",pk:"d",ic:"🌙",rd:["Phantom Manor","Pirates of the Caribbean","Indiana Jones","Star Tours","Buzz Lightyear Laser Blast"],nt:"10–20 мин очереди. Фейерверк ~22:30"},
+    ]},
+  {id:"s3",tt:"Только Главный парк",sub:"Без спешки, повторы любимых",em:"🏰",
+    bl:[
+      {lb:"Старт",tm:"9:30–11:00",pk:"d",ic:"🌅",rd:["Peter Pan's Flight","Big Thunder Mountain","Buzz Lightyear Laser Blast"],nt:"Начать с самых желанных аттракционов рядом с замком"},
+      {lb:"Утро",tm:"11:00–13:00",pk:"d",ic:"☀️",rd:["Hyperspace Mountain","Phantom Manor","Pirates of the Caribbean"],nt:"Популярные аттракционы пока терпимо"},
+      {lb:"Обед+лёгкие",tm:"13:00–16:00",pk:"d",ic:"🍕",rd:["It's a Small World","Star Tours","Buzz Lightyear Laser Blast"],nt:"Пик! Обед, шоу, замок"},
+      {lb:"Вечер",tm:"16:00–20:00",pk:"d",ic:"🌆",rd:["Indiana Jones","Orbitron","Autopia"],nt:"Лёгкие аттракционы + повтор любимых во время парада"},
+      {lb:"Ночь",tm:"20:00–23:00",pk:"d",ic:"🌙",rd:["Big Thunder Mountain","Hyperspace Mountain","Peter Pan's Flight"],nt:"Повтор любимых по короткой очереди! Фейерверк ~22:30"},
+    ]},
+  {id:"s4",tt:"Только Adventure World",sub:"Frozen, Crush's, Ratatouille",em:"🎬",
+    bl:[
+      {lb:"Старт",tm:"9:30–11:00",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Frozen или Crush's первыми — потом очередь резко растёт"},
+      {lb:"Утро",tm:"11:00–13:00",pk:"s",ic:"☀️",rd:["Avengers Assemble","Spider-Man W.E.B."],nt:"Avengers Campus"},
+      {lb:"Обед",tm:"13:00–15:00",pk:"s",ic:"🍕",rd:["Cars Road Trip"],nt:"Пик. Обед, фото, шоу"},
+      {lb:"Второй раунд",tm:"15:00–18:00",pk:"s",ic:"🌆",rd:["Toy Soldiers","RC Racer"],nt:"Лёгкие + повтор"},
+      {lb:"Вечер",tm:"18:00–21:00",pk:"s",ic:"🌙",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Повтор любимых ближе к закрытию"},
+    ]},
+];
+
+const wm=h=>({9:.12,10:.35,11:.6,12:.85,13:.95,14:1,15:.95,16:.85,17:.7,18:.55,19:.45,20:.35,21:.2,22:.1}[h]||.5);
+const wc=m=>m<=10?"#22c55e":m<=25?"#84cc16":m<=40?"#eab308":m<=60?"#f97316":"#ef4444";
+const esc=s=>(s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const pk=k=>k==="d"?"dlp":"st";
+const MIN_BASELINE_SAMPLES=24;
+const liveRide=(n,m)=>S.live?.[m.id]||S.live?.[n];
+const singleRide=m=>m.srid?S.live?.[m.srid]:null;
+const dayLabel=t=>({weekday:"Будни",weekend:"Выходные",holiday:"Праздники"}[t]||"Будни");
+const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(new Date()));
+const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
+const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:m.ap*wm(h));
+const baseText=(m,lv)=>{
+  const b=baseRide(m);
+  const p25=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.p25:Math.max(0,Math.round(fallbackWait(m)*.75));
+  const p75=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.p75:Math.round(fallbackWait(m)*1.25);
+  const range=`обычно ${p25}-${p75} мин`;
+  if(!lv||!lv.is_open)return range;
+  const w=lv.wait_time;
+  if(w<p25)return `${range} · <span class="cmp cmp-good">лучше обычного</span>`;
+  if(w>p75)return `${range} · <span class="cmp cmp-bad">хуже обычного</span>`;
+  return `${range} · <span class="cmp cmp-mid">норма</span>`;
+};
+
+// ── State ───────────────────────────────────────────────────────────────────
+let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null};
+function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
+
+// ── Fetch ───────────────────────────────────────────────────────────────────
+async function fetchLive(){
+  set({ld:true});
+  try{
+    const[r1,r2]=await Promise.all([fetch("/api/queue/4"),fetch("/api/queue/28")]);
+    const[d1,d2]=await Promise.all([r1.json(),r2.json()]);
+    const live={};
+    const proc=d=>(d.lands||[]).forEach(l=>(l.rides||[]).forEach(r=>{live[r.id]=r}));
+    proc(d1);proc(d2);
+    set({live,upd:new Date(),err:null,ld:false});
+    fetch("/api/baseline").then(r=>r.ok?r.json():null).then(base=>{
+      if(base)set({base,baseType:base.day_type});
+    }).catch(()=>{});
+  }catch{set({err:"Live недоступны",ld:false})}
+}
+
+async function loadBaseline(dayType){
+  set({bd:true});
+  try{
+    const r=await fetch(`/api/baseline?day_type=${dayType}`);
+    const base=await r.json();
+    set({base,baseType:base.day_type,bd:false});
+  }catch{set({err:"История недоступна",bd:false})}
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function draw(){
+  const $=document.getElementById("app");
+  const fl=Object.entries(R).filter(([_,m])=>S.pf==="all"||m.p===S.pf).sort((a,b)=>"SABC".indexOf(a[1].t)-"SABC".indexOf(b[1].t));
+  const bp=k=>fl.filter(([_,m])=>m.p===k);
+  const hasLive=!!S.live&&Object.keys(S.live).length>0;
+
+  let h=`<div class="hdr">
+    <h1>Disneyland Paris</h1>
+    <div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Live ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div>
+  </div>`;
+
+  h+=`<div class="tabs">${[["ranking","🏆 Рейтинг"],["heatmap","🔥 Часы"],["plan","📋 План"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
+
+  // ═══ RANKING ═══
+  if(S.tab==="ranking"){
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
+      const rides=bp(k);if(!rides.length)return;
+      const p=P[k];
+      h+=`<div class="ps"><div class="psh ${pk(k)}"><span class="em">${p.e}</span><span class="nm">${p.n}</span><span class="hr">${p.h}</span></div>`;
+      rides.forEach(([n,m])=>{
+        const lv=liveRide(n,m);
+        const slv=singleRide(m);
+        const singleBadge=m.sr?`<span class="lv tg-s">Single${slv&&slv.is_open?` ${slv.wait_time} мин`:''}</span>`:'';
+        let badge='<span style="font-size:9px;color:var(--mu)">—</span>';
+        if(S.ld)badge='<span style="font-size:9px;color:var(--mu)">⏳</span>';
+        else if(lv){
+          if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
+          else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
+        }
+        h+=`<div class="rc ${pk(m.p)}"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span>${m.pa?'<span class="tg-p">Fast-pass</span>':''}</div><div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
+      });
+      h+=`</div>`;
+    });
+    h+=`<div class="lgd">${Object.entries(T).map(([_,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.lb}</span>`).join("")}<span>Single</span><span>Fast-pass</span></div>`;
+  }
+
+  // ═══ HEATMAP ═══
+  if(S.tab==="heatmap"){
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${["weekday","weekend","holiday"].map(t=>`<button class="pl ${S.baseType===t?"on":""}" onclick="loadBaseline('${t}')">${dayLabel(t)}</button>`).join("")}</div>`;
+    h+=`<div class="hm-w"><div class="hm-i"><div class="hm-h"><div class="l"></div>${Array.from({length:14},(_,i)=>`<div class="h">${i+9}</div>`).join("")}</div>`;
+    (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
+      const rides=bp(k);if(!rides.length)return;
+      h+=`<div class="hm-st ${pk(k)}">${P[k].e} ${P[k].n}</div>`;
+      rides.forEach(([n,m])=>{
+        h+=`<div class="hm-r"><div class="l">${m.i} ${esc(n)}</div>`;
+        for(let i=0;i<14;i++){const hr=i+9,b=baseRide(m,hr),v=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.median:fallbackWait(m,hr);h+=`<div class="c" style="background:${wc(v)};color:${v>40?'#fff':'#0f172a'}">${v}</div>`}
+        h+=`</div>`;
+      });
+    });
+    h+=`</div></div>`;
+    h+=`<div class="hm-ins"><b style="color:var(--tx)">📊 ${dayLabel(S.baseType)}</b><br>Ориентир по ожиданию в течение дня. Самые зелёные часы — лучшие окна для популярных аттракционов.</div>`;
+  }
+
+  // ═══ PLAN ═══
+  if(S.tab==="plan"){
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:6px">Стратегия:</div>`;
+    STR.forEach((s,i)=>{h+=`<button class="stb ${S.si===i?"on":""}" onclick="set({si:${i}})"><div class="inn"><span class="em">${s.em}</span><div style="flex:1"><div class="tt">${s.tt}</div><div class="ss">${s.sub}</div></div>${S.si===i?'<span class="ck">✓</span>':''}</div></button>`});
+    const st=STR[S.si];
+    const nbl=st.bl.filter(b=>b.pk!=="x").length,ntr=st.bl.filter(b=>b.pk==="x").length,nrd=st.bl.flatMap(b=>b.rd).length;
+    h+=`<div class="pbn"><div class="tt">🗺️ ${st.tt}</div><div class="st">${nbl} блоков · ${ntr} переход(а) · ${nrd} аттракционов</div></div>`;
+    st.bl.forEach(b=>{
+      const tr=b.pk==="x",cls=tr?"bl tr":b.pk==="d"?"bl d":"bl s";
+      h+=`<div class="${cls}"><div class="bl-h"><div class="lf"><span class="ic" style="font-size:${tr?14:18}px">${b.ic}</span><div><div class="bl-lb">${b.lb}</div><div class="bl-tm">${b.tm}</div></div></div>${!tr?(b.pk==="d"?'<span class="pbdg d">🏰 Главный</span>':'<span class="pbdg s">🎬 Adventure</span>'):''}</div>`;
+      if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg}30;color:${tc.bg};border:1px solid ${tc.bg}40">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
+      h+=`<div class="bl-nt">${b.nt}</div></div>`;
+    });
+    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Tower, Hyperspace, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — €7–21. Приоритет: Crush's и Peter Pan<br><br><b>Парад ~17:30</b> — очереди -30–50%<br><br><b>Disneyland Paris App</b> — live очереди в парке</p></div>`;
+  }
+
+  // Status bar
+  h+=`<div class="sbar"><div>${S.upd?`${S.upd.toLocaleTimeString()}`:''}${S.err?` <span class="err">${S.err}</span>`:''}</div><button onclick="fetchLive()" ${S.ld?'disabled':''}>${S.ld?'⏳':'🔄 Live'}</button></div>`;
+
+  $.innerHTML=h;
+}
+
+draw();
+fetchLive();
+</script>
+</body>
+</html>
