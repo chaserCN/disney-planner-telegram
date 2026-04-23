@@ -183,9 +183,18 @@
   .sbar button:disabled { opacity:.5; }
   .sbar .err { color:#f97316; font-size:11px; }
 
+  /* Pull to refresh */
+  .ptr { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--mu); font-weight:700; pointer-events:none; z-index:30; padding-top:var(--safe-top); transition:transform .2s; transform:translateY(-60px); }
+  .ptr.act { transition:none; }
+  .ptr .ic { display:inline-block; margin-right:6px; transition:transform .2s; }
+  .ptr.rdy .ic { transform:rotate(180deg); }
+  .ptr.spn .ic { animation:ptr-spin .8s linear infinite; }
+  @keyframes ptr-spin { to { transform:rotate(360deg) } }
+
 </style>
 </head>
 <body>
+<div class="ptr" id="ptr"><span class="ic">↓</span><span class="tx">Потяните, чтобы обновить</span></div>
 <div class="app" id="app"></div>
 
 <script>
@@ -328,6 +337,67 @@ async function fetchLive(){
       if(base)set({base,baseType:base.day_type});
     }).catch(()=>{});
   }catch{set({err:"Live недоступны",ld:false})}
+}
+
+// ── Pull to refresh ────────────────────────────────────────────────────────
+function initPullToRefresh(){
+  const THRESHOLD=70, MAX=110;
+  let startY=null, dy=0, active=false, busy=false;
+
+  const getScrollTop=()=>window.scrollY||document.documentElement.scrollTop||0;
+
+  document.addEventListener("touchstart",e=>{
+    if(busy)return;
+    if(e.target.closest(".mv-wrap"))return;
+    if(getScrollTop()>0)return;
+    startY=e.touches[0].clientY;
+    dy=0;active=false;
+  },{passive:true});
+
+  document.addEventListener("touchmove",e=>{
+    if(startY===null||busy)return;
+    dy=e.touches[0].clientY-startY;
+    if(dy<=0){if(active){active=false;updatePtr(0,false)}return}
+    if(!active&&dy>8)active=true;
+    if(!active)return;
+    const pull=Math.min(MAX,dy*0.5);
+    updatePtr(pull,pull>=THRESHOLD);
+  },{passive:true});
+
+  document.addEventListener("touchend",()=>{
+    if(startY===null){return}
+    const wasReady=dy*0.5>=THRESHOLD;
+    startY=null;dy=0;
+    if(!active){active=false;return}
+    active=false;
+    if(wasReady&&!busy){
+      busy=true;
+      const ptr=document.getElementById("ptr");
+      ptr.classList.add("spn");
+      ptr.classList.remove("rdy");
+      ptr.querySelector(".tx").textContent="Обновляем...";
+      ptr.style.transform="translateY(0)";
+      fetchLive().finally(()=>{
+        setTimeout(()=>{
+          busy=false;
+          ptr.classList.remove("spn");
+          ptr.querySelector(".tx").textContent="Потяните, чтобы обновить";
+          updatePtr(0,false);
+        },300);
+      });
+    } else {
+      updatePtr(0,false);
+    }
+  });
+
+  function updatePtr(pull,ready){
+    const ptr=document.getElementById("ptr");
+    if(!ptr)return;
+    ptr.classList.toggle("act",pull>0);
+    ptr.classList.toggle("rdy",ready);
+    ptr.querySelector(".tx").textContent=ready?"Отпустите для обновления":"Потяните, чтобы обновить";
+    ptr.style.transform=`translateY(${pull-60}px)`;
+  }
 }
 
 async function loadCoords(){
@@ -691,6 +761,7 @@ function draw(){
 draw();
 fetchLive();
 loadCoords();
+initPullToRefresh();
 </script>
 </body>
 </html>
