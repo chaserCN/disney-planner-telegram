@@ -285,6 +285,7 @@ const STR = [
 const wm=h=>({9:.12,10:.35,11:.6,12:.85,13:.95,14:1,15:.95,16:.85,17:.7,18:.55,19:.45,20:.35,21:.2,22:.1}[h]||.5);
 const wc=m=>m<=10?"#22c55e":m<=25?"#84cc16":m<=40?"#eab308":m<=60?"#f97316":"#ef4444";
 const esc=s=>(s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const attr=s=>(s+"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;");
 const pk=k=>k==="d"?"dlp":"st";
 const MIN_BASELINE_SAMPLES=24;
 const liveRide=(n,m)=>S.live?.[m.id]||S.live?.[n];
@@ -347,7 +348,13 @@ function mvPositionPopup(){
   if(!pop)return;
   const wrap=document.getElementById("mv-wrap");
   const img=document.getElementById("mv-img");
-  if(!wrap||!img||!img.naturalWidth)return;
+  if(!wrap||!img)return;
+  if(!img.naturalWidth){
+    pop.style.visibility="hidden";
+    img.addEventListener("load",mvPositionPopup,{once:true});
+    return;
+  }
+  pop.style.visibility="visible";
   const mx=Number(pop.dataset.mx), my=Number(pop.dataset.my);
   const baseW=wrap.clientWidth;
   const baseH=img.naturalHeight*(baseW/img.naturalWidth);
@@ -495,6 +502,26 @@ function mvPickRide(name){
   set({msel:S.msel===name?null:name});
 }
 
+function focusOnMap(name){
+  if(!S.coords[name])return;
+  set({tab:"map",msel:name,pf:"all",mrt:"all"});
+  requestAnimationFrame(()=>{
+    const wrap=document.getElementById("mv-wrap");
+    const img=document.getElementById("mv-img");
+    if(!wrap||!img)return;
+    const center=()=>{
+      const c=S.coords[name];if(!c)return;
+      const cw=wrap.clientWidth, ch=wrap.clientHeight;
+      const baseW=cw, baseH=img.naturalHeight*(cw/img.naturalWidth);
+      MV.tx=cw/2-(c.mx/100)*baseW*MV.scale;
+      MV.ty=ch/2-(c.my/100)*baseH*MV.scale;
+      mvClampPan();mvApply();
+    };
+    if(img.naturalWidth)center();
+    else img.addEventListener("load",center,{once:true});
+  });
+}
+
 function mvClosePopup(e){
   if(e)e.stopPropagation();
   set({msel:null});
@@ -545,7 +572,7 @@ function draw(){
           if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
           else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
         }
-        h+=`<div class="rc ${pk(m.p)}"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${m.pa?'<div class="tags"><span class="tg-p">Fast-pass</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
+        h+=`<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${m.pa?'<div class="tags"><span class="tg-p">Fast-pass</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
       });
       h+=`</div>`;
     });

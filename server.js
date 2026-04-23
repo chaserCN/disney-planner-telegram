@@ -84,7 +84,13 @@ console.log(`SQLite wait history: ${DB_PATH} (${sampleCount} samples)`);
 
 // ── Queue-Times API proxy (solves CORS) ─────────────────────────────────────
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders: (res, filePath) => {
+    if (/\.(jpg|jpeg|png|webp|svg|gif)$/i.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    }
+  }
+}));
 
 const COORDS_PATH = path.join(__dirname, "data", "ride-coords.json");
 
