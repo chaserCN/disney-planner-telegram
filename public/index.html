@@ -273,7 +273,22 @@ const baseText=(m,lv)=>{
 // ── State ───────────────────────────────────────────────────────────────────
 let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null};
 const MV = {scale:1,tx:0,ty:0,ready:false};
+let geoMsgTimer = null;
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
+
+function setGeoMsg(message){
+  if(geoMsgTimer){
+    clearTimeout(geoMsgTimer);
+    geoMsgTimer=null;
+  }
+  set({geoMsg:message});
+  if(message){
+    geoMsgTimer=setTimeout(()=>{
+      geoMsgTimer=null;
+      set({geoMsg:null});
+    },5000);
+  }
+}
 
 // ── Fetch ───────────────────────────────────────────────────────────────────
 async function fetchLive(){
@@ -443,14 +458,17 @@ function requestUserLocation(){
   navigator.geolocation.getCurrentPosition(pos=>{
     const projected=calibrationProject(pos.coords.latitude,pos.coords.longitude);
     if(!projected){
-      set({userPos:null,geoBusy:false,geoMsg:"Вы вне зоны карты"});
+      set({userPos:null,geoBusy:false});
+      setGeoMsg("Вы вне зоны карты");
       return;
     }
     if(projected.mx<0||projected.mx>100||projected.my<0||projected.my>100){
-      set({userPos:null,geoBusy:false,geoMsg:"Вы вне зоны карты"});
+      set({userPos:null,geoBusy:false});
+      setGeoMsg("Вы вне зоны карты");
       return;
     }
-    set({userPos:projected,geoBusy:false,geoMsg:null});
+    set({userPos:projected,geoBusy:false});
+    setGeoMsg(null);
     const wrap=document.getElementById("mv-wrap");
     const img=document.getElementById("mv-img");
     if(!wrap||!img||!img.naturalWidth)return;
@@ -460,7 +478,8 @@ function requestUserLocation(){
     MV.ty=ch/2-(projected.my/100)*baseH*MV.scale;
     mvClampPan();mvApply();
   },()=>{
-    set({geoBusy:false,geoMsg:null});
+    set({geoBusy:false});
+    setGeoMsg(null);
     alert("Не удалось получить геолокацию");
   },{enableHighAccuracy:true,timeout:10000,maximumAge:15000});
 }
