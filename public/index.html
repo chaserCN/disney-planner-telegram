@@ -526,7 +526,7 @@ function draw(){
     <div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Live ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div>
   </div>`;
 
-  h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["plan","📋"],["map","🗺️"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
+  h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
 
   // ═══ RANKING ═══
   if(S.tab==="ranking"){
