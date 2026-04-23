@@ -11,10 +11,10 @@ const PARK_IDS = [4, 28];
 const COLLECT_INTERVAL_MS = 10 * 60 * 1000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "disney.sqlite");
 
-const COLLECT_HOUR_START = 9;
-const COLLECT_HOUR_END = 23;
-const ALERT_HOUR_START = 9;
-const ALERT_HOUR_END = 22;
+const COLLECT_START_MINUTES = 9 * 60 + 30;
+const COLLECT_END_MINUTES = 22 * 60 + 40;
+const ALERT_START_MINUTES = 9 * 60 + 30;
+const ALERT_END_MINUTES = 22 * 60 + 40;
 const ALERT_CURRENT_MAX_WAIT = 10;
 const ALERT_BASELINE_MIN_WAIT = 30;
 const ALERT_MIN_BASELINE_SAMPLES = 24;
@@ -150,9 +150,15 @@ function percentileFromSorted(sortedValues, p) {
   return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, index))];
 }
 
+function isWithinMinutesWindow(paris, startMinutes, endMinutes) {
+  const [hour, minute] = paris.localTime.split(":").map(Number);
+  const totalMinutes = hour * 60 + minute;
+  return totalMinutes >= startMinutes && totalMinutes < endMinutes;
+}
+
 async function checkAndSendAlerts(paris, livePerRideId) {
   if (!botInstance) return;
-  if (paris.hour < ALERT_HOUR_START || paris.hour >= ALERT_HOUR_END) return;
+  if (!isWithinMinutesWindow(paris, ALERT_START_MINUTES, ALERT_END_MINUTES)) return;
 
   const subscribers = subscribersAll.all();
   if (!subscribers.length) return;
@@ -463,7 +469,7 @@ async function collectWaitSamples() {
   const sampledAt = new Date();
   const paris = getParisDateParts(sampledAt);
 
-  if (paris.hour < COLLECT_HOUR_START || paris.hour >= COLLECT_HOUR_END) {
+  if (!isWithinMinutesWindow(paris, COLLECT_START_MINUTES, COLLECT_END_MINUTES)) {
     return;
   }
 
@@ -562,7 +568,7 @@ function startBot() {
     subscribeStmt.run(msg.chat.id, new Date().toISOString());
     bot.sendMessage(msg.chat.id,
       "🔔 *Уведомления включены*\n\n" +
-      "Будем писать, когда у популярного аттракциона очередь резко упадёт (в часы работы парка, 9:00–22:00 по Парижу).\n\n" +
+      "Будем писать, когда у популярного аттракциона очередь резко упадёт (в часы работы парка, 09:30–22:40 по Парижу).\n\n" +
       "Отключить — /unsubscribe",
       { parse_mode: "Markdown" }
     );

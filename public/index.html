@@ -201,7 +201,7 @@ if (tg) {
 // ── Data ────────────────────────────────────────────────────────────────────
 const { R, RC } = window.RIDES_DATA;
 
-const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"9:30–23:00"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"9:30–21:00"} };
+const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"09:30–22:40"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"09:30–22:40"} };
 const T = {S:{bg:"#8b5cf6",tx:"#fff",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#c4b5fd",tx:"#2e1065",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
 const DEFAULT_CALIBRATION_POINTS = [
   {id:1,name:"Cal 1",lat:48.87261,lng:2.77677,mx:58.28,my:29.81},
@@ -218,7 +218,7 @@ const STR = [
       {lb:"После обеда",tm:"13:30–16:00",pk:"s",ic:"☀️",rd:["Cars Road Trip","Toy Soldiers","RC Racer","Avengers Assemble"],nt:"Спокойнее, фото и любимые зоны без спешки"},
       {lb:"Переход",tm:"16:00–16:15",pk:"x",ic:"🚶",rd:[],nt:"~15 мин. Единственный переход!"},
       {lb:"Вечер в Главном парке",tm:"16:15–20:00",pk:"d",ic:"🌆",rd:["Big Thunder Mountain","Phantom Manor","Pirates of the Caribbean","Indiana Jones"],nt:"Очереди ↓ после 17:00. Парад ещё снижает!"},
-      {lb:"Ночь в Главном парке",tm:"20:00–23:00",pk:"d",ic:"🌙",rd:["Hyperspace Mountain","Peter Pan's Flight","Star Tours","Buzz Lightyear Laser Blast"],nt:"Лучшие аттракционы часто короче вечером! Фейерверк ~22:30"},
+      {lb:"Ночь в Главном парке",tm:"20:00–22:40",pk:"d",ic:"🌙",rd:["Hyperspace Mountain","Peter Pan's Flight","Star Tours","Buzz Lightyear Laser Blast"],nt:"Лучшие аттракционы часто короче вечером! Фейерверк ~22:30"},
     ]},
   {id:"s2",tt:"Главный → Adventure World → Главный",sub:"Замок утром, Frozen днём. 2 перехода",em:"🏰→🎬→🏰",
     bl:[
@@ -226,7 +226,7 @@ const STR = [
       {lb:"Переход",tm:"12:30–12:45",pk:"x",ic:"🚶",rd:[],nt:"Обед в Adventure World"},
       {lb:"День в Adventure World",tm:"13:00–18:00",pk:"s",ic:"☀️",rd:["Frozen Ever After","Ratatouille","Crush's Coaster","Spider-Man W.E.B.","Cars Road Trip"],nt:"Frozen и Ratatouille — самые семейные цели этого блока"},
       {lb:"Назад",tm:"18:00–18:15",pk:"x",ic:"🚶",rd:[],nt:"Последний переход"},
-      {lb:"Вечер в Главном парке",tm:"18:15–23:00",pk:"d",ic:"🌙",rd:["Phantom Manor","Pirates of the Caribbean","Indiana Jones","Star Tours","Buzz Lightyear Laser Blast"],nt:"10–20 мин очереди. Фейерверк ~22:30"},
+      {lb:"Вечер в Главном парке",tm:"18:15–22:40",pk:"d",ic:"🌙",rd:["Phantom Manor","Pirates of the Caribbean","Indiana Jones","Star Tours","Buzz Lightyear Laser Blast"],nt:"10–20 мин очереди. Фейерверк ~22:30"},
     ]},
   {id:"s3",tt:"Только Главный парк",sub:"Без спешки, повторы любимых",em:"🏰",
     bl:[
@@ -234,7 +234,7 @@ const STR = [
       {lb:"Утро",tm:"11:00–13:00",pk:"d",ic:"☀️",rd:["Hyperspace Mountain","Phantom Manor","Pirates of the Caribbean"],nt:"Популярные аттракционы пока терпимо"},
       {lb:"Обед+лёгкие",tm:"13:00–16:00",pk:"d",ic:"🍕",rd:["It's a Small World","Star Tours","Buzz Lightyear Laser Blast"],nt:"Пик! Обед, шоу, замок"},
       {lb:"Вечер",tm:"16:00–20:00",pk:"d",ic:"🌆",rd:["Indiana Jones","Orbitron","Autopia"],nt:"Лёгкие аттракционы + повтор любимых во время парада"},
-      {lb:"Ночь",tm:"20:00–23:00",pk:"d",ic:"🌙",rd:["Big Thunder Mountain","Hyperspace Mountain","Peter Pan's Flight"],nt:"Повтор любимых по короткой очереди! Фейерверк ~22:30"},
+      {lb:"Ночь",tm:"20:00–22:40",pk:"d",ic:"🌙",rd:["Big Thunder Mountain","Hyperspace Mountain","Peter Pan's Flight"],nt:"Повтор любимых по короткой очереди! Фейерверк ~22:30"},
     ]},
   {id:"s4",tt:"Только Adventure World",sub:"Frozen, Crush's, Ratatouille",em:"🎬",
     bl:[
@@ -242,7 +242,7 @@ const STR = [
       {lb:"Утро",tm:"11:00–13:00",pk:"s",ic:"☀️",rd:["Avengers Assemble","Spider-Man W.E.B."],nt:"Avengers Campus"},
       {lb:"Обед",tm:"13:00–15:00",pk:"s",ic:"🍕",rd:["Cars Road Trip"],nt:"Пик. Обед, фото, шоу"},
       {lb:"Второй раунд",tm:"15:00–18:00",pk:"s",ic:"🌆",rd:["Toy Soldiers","RC Racer"],nt:"Лёгкие + повтор"},
-      {lb:"Вечер",tm:"18:00–21:00",pk:"s",ic:"🌙",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Повтор любимых ближе к закрытию"},
+      {lb:"Вечер",tm:"18:00–22:40",pk:"s",ic:"🌙",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Повтор любимых ближе к закрытию"},
     ]},
 ];
 
