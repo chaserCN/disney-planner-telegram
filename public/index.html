@@ -213,36 +213,36 @@ const DEFAULT_CALIBRATION_POINTS = [
 const STR = [
   {id:"s1",tt:"Adventure World → Главный",sub:"Frozen утром, замок и фейерверк вечером. 1 переход",em:"🎬→🏰",
     bl:[
-      {lb:"Старт Adventure World",tm:"9:30–12:30",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille","Spider-Man W.E.B."],nt:"Frozen или Crush's первыми — днём у них самые длинные очереди"},
+      {lb:"Старт Adventure World",tm:"9:30–12:30",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Именно в этом порядке — топ Fast-pass приоритеты, очереди быстро растут"},
       {lb:"Обед",tm:"12:30–13:30",pk:"s",ic:"🍕",rd:[],nt:"Пик очередей — ешьте! Bistrot Chez Rémy"},
-      {lb:"После обеда",tm:"13:30–16:00",pk:"s",ic:"☀️",rd:["Cars Road Trip","Toy Soldiers","RC Racer","Avengers Assemble"],nt:"Спокойнее, фото и любимые зоны без спешки"},
+      {lb:"После обеда",tm:"13:30–16:00",pk:"s",ic:"☀️",rd:["Spider-Man W.E.B.","Cars Road Trip","Toy Soldiers","RC Racer","Avengers Assemble"],nt:"Спокойнее, фото и любимые зоны без спешки"},
       {lb:"Переход",tm:"16:00–16:15",pk:"x",ic:"🚶",rd:[],nt:"~15 мин. Единственный переход!"},
-      {lb:"Вечер в Главном парке",tm:"16:15–20:00",pk:"d",ic:"🌆",rd:["Big Thunder Mountain","Phantom Manor","Pirates of the Caribbean","Indiana Jones"],nt:"Очереди ↓ после 17:00. Парад ещё снижает!"},
+      {lb:"Вечер в Главном парке",tm:"16:15–20:00",pk:"d",ic:"🌆",rd:["Phantom Manor","Big Thunder Mountain","Pirates of the Caribbean","Indiana Jones"],nt:"Очереди ↓ после 17:00. Парад ещё снижает!"},
       {lb:"Ночь в Главном парке",tm:"20:00–22:40",pk:"d",ic:"🌙",rd:["Hyperspace Mountain","Peter Pan's Flight","Star Tours","Buzz Lightyear Laser Blast"],nt:"Лучшие аттракционы часто короче вечером! Фейерверк ~22:30"},
     ]},
   {id:"s2",tt:"Главный → Adventure World → Главный",sub:"Замок утром, Frozen днём. 2 перехода",em:"🏰→🎬→🏰",
     bl:[
-      {lb:"Старт в Главном парке",tm:"9:30–12:30",pk:"d",ic:"🌅",rd:["Peter Pan's Flight","Big Thunder Mountain","Pirates of the Caribbean","Buzz Lightyear Laser Blast"],nt:"Начать с волшебных хитов около замка"},
+      {lb:"Старт в Главном парке",tm:"9:30–12:30",pk:"d",ic:"🌅",rd:["Big Thunder Mountain","Phantom Manor","Pirates of the Caribbean","Buzz Lightyear Laser Blast"],nt:"Big Thunder — топ Fast-pass, брать утром. Phantom Manor — 5 звёзд"},
       {lb:"Переход",tm:"12:30–12:45",pk:"x",ic:"🚶",rd:[],nt:"Обед в Adventure World"},
-      {lb:"День в Adventure World",tm:"13:00–18:00",pk:"s",ic:"☀️",rd:["Frozen Ever After","Ratatouille","Crush's Coaster","Spider-Man W.E.B.","Cars Road Trip"],nt:"Frozen и Ratatouille — самые семейные цели этого блока"},
+      {lb:"День в Adventure World",tm:"13:00–18:00",pk:"s",ic:"☀️",rd:["Frozen Ever After","Crush's Coaster","Ratatouille","Avengers Assemble","Spider-Man W.E.B."],nt:"Frozen, Crush's, Ratatouille — топ Fast-pass. Брать именно в этом порядке"},
       {lb:"Назад",tm:"18:00–18:15",pk:"x",ic:"🚶",rd:[],nt:"Последний переход"},
-      {lb:"Вечер в Главном парке",tm:"18:15–22:40",pk:"d",ic:"🌙",rd:["Phantom Manor","Pirates of the Caribbean","Indiana Jones","Star Tours","Buzz Lightyear Laser Blast"],nt:"10–20 мин очереди. Фейерверк ~22:30"},
+      {lb:"Вечер в Главном парке",tm:"18:15–22:40",pk:"d",ic:"🌙",rd:["Peter Pan's Flight","Indiana Jones","Hyperspace Mountain","Star Tours"],nt:"Peter Pan и Hyperspace короче вечером. Фейерверк ~22:30"},
     ]},
   {id:"s3",tt:"Только Главный парк",sub:"Без спешки, повторы любимых",em:"🏰",
     bl:[
-      {lb:"Старт",tm:"9:30–11:00",pk:"d",ic:"🌅",rd:["Peter Pan's Flight","Big Thunder Mountain","Buzz Lightyear Laser Blast"],nt:"Начать с самых желанных аттракционов рядом с замком"},
-      {lb:"Утро",tm:"11:00–13:00",pk:"d",ic:"☀️",rd:["Hyperspace Mountain","Phantom Manor","Pirates of the Caribbean"],nt:"Популярные аттракционы пока терпимо"},
-      {lb:"Обед+лёгкие",tm:"13:00–16:00",pk:"d",ic:"🍕",rd:["It's a Small World","Star Tours","Buzz Lightyear Laser Blast"],nt:"Пик! Обед, шоу, замок"},
-      {lb:"Вечер",tm:"16:00–20:00",pk:"d",ic:"🌆",rd:["Indiana Jones","Orbitron","Autopia"],nt:"Лёгкие аттракционы + повтор любимых во время парада"},
-      {lb:"Ночь",tm:"20:00–22:40",pk:"d",ic:"🌙",rd:["Big Thunder Mountain","Hyperspace Mountain","Peter Pan's Flight"],nt:"Повтор любимых по короткой очереди! Фейерверк ~22:30"},
+      {lb:"Старт",tm:"9:30–11:00",pk:"d",ic:"🌅",rd:["Big Thunder Mountain","Phantom Manor","Buzz Lightyear Laser Blast"],nt:"Big Thunder (топ Fast-pass) и Phantom Manor первыми — утром короче"},
+      {lb:"Утро",tm:"11:00–13:00",pk:"d",ic:"☀️",rd:["Hyperspace Mountain","Pirates of the Caribbean","Indiana Jones"],nt:"Популярные аттракционы пока терпимо"},
+      {lb:"Обед+лёгкие",tm:"13:00–16:00",pk:"d",ic:"🍕",rd:["It's a Small World","Star Tours","Autopia"],nt:"Пик! Обед, шоу, лёгкие аттракционы"},
+      {lb:"Вечер",tm:"16:00–20:00",pk:"d",ic:"🌆",rd:["Indiana Jones","Orbitron"],nt:"Повтор любимых во время парада"},
+      {lb:"Ночь",tm:"20:00–22:40",pk:"d",ic:"🌙",rd:["Peter Pan's Flight","Big Thunder Mountain","Hyperspace Mountain"],nt:"Peter Pan — именно вечером, днём там самые длинные очереди. Фейерверк ~22:30"},
     ]},
   {id:"s4",tt:"Только Adventure World",sub:"Frozen, Crush's, Ratatouille",em:"🎬",
     bl:[
-      {lb:"Старт",tm:"9:30–11:00",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Frozen или Crush's первыми — потом очередь резко растёт"},
-      {lb:"Утро",tm:"11:00–13:00",pk:"s",ic:"☀️",rd:["Avengers Assemble","Spider-Man W.E.B."],nt:"Avengers Campus"},
-      {lb:"Обед",tm:"13:00–15:00",pk:"s",ic:"🍕",rd:["Cars Road Trip"],nt:"Пик. Обед, фото, шоу"},
+      {lb:"Старт",tm:"9:30–11:00",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Именно в этом порядке — топ Fast-pass, очереди быстро растут"},
+      {lb:"Утро",tm:"11:00–13:00",pk:"s",ic:"☀️",rd:["Avengers Assemble","Tower of Terror"],nt:"Avengers Campus + Tower of Terror (Single Rider ускоряет)"},
+      {lb:"Обед",tm:"13:00–15:00",pk:"s",ic:"🍕",rd:["Spider-Man W.E.B.","Cars Road Trip"],nt:"Пик. Обед, фото, лёгкие аттракционы"},
       {lb:"Второй раунд",tm:"15:00–18:00",pk:"s",ic:"🌆",rd:["Toy Soldiers","RC Racer"],nt:"Лёгкие + повтор"},
-      {lb:"Вечер",tm:"18:00–22:40",pk:"s",ic:"🌙",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Повтор любимых ближе к закрытию"},
+      {lb:"Вечер",tm:"18:00–22:40",pk:"s",ic:"🌙",rd:["Frozen Ever After","Crush's Coaster","Ratatouille","Tower of Terror"],nt:"Повтор любимых ближе к закрытию"},
     ]},
 ];
 
@@ -759,7 +759,6 @@ function draw(){
       rides.forEach(e=>{h+=renderCard(e)});
       h+=`</div>`;
     });
-    h+=`<div class="lgd">${Object.entries(T).map(([_,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.lb}</span>`).join("")}</div>`;
   }
 
   // ═══ HEATMAP ═══
@@ -793,7 +792,7 @@ function draw(){
       if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg};color:${tc.tx}">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
       h+=`<div class="bl-nt">${b.nt}</div></div>`;
     });
-    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Tower, Hyperspace, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — €7–21. Приоритет: Crush's и Peter Pan<br><br><b>Парад ~17:30</b> — очереди -30–50%<br><br><b>Disneyland Paris App</b> — live очереди в парке</p></div>`;
+    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Tower, Hyperspace, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — €7–21. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
   }
 
   // ═══ MAP ═══
