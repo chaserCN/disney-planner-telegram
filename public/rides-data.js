@@ -22,7 +22,7 @@
     "Avengers Assemble":          {id:10848,srid:10849,t:"A",tp:"горки",p:"s",l:"Avengers Campus",bh:[9,10,20,21],ap:50,i:"🦸",sr:1,pa:1},
     "Spider-Man W.E.B.":          {id:10845,srid:10846,t:"B",tp:"интерактив",p:"s",l:"Avengers Campus",bh:[10,14,20],ap:35,i:"🕷️",sr:1,pa:0},
     "Cars Road Trip":             {id:29,t:"C",tp:"прогулка",p:"s",l:"World of Pixar",bh:[10,11,14,15],ap:30,i:"🏎️",sr:0,pa:1},
-    "Toy Soldiers":               {id:35,srid:7281,t:"C",tp:"башня",p:"s",l:"World of Pixar",bh:[10,11,15,16],ap:25,i:"🪖",sr:1,pa:0},
+    "Toy Soldiers":               {id:35,srid:7281,t:"B",tp:"башня",p:"s",l:"World of Pixar",bh:[10,11,15,16],ap:25,i:"🪖",sr:1,pa:0},
     "RC Racer":                   {id:34,srid:7280,t:"B",tp:"горки",p:"s",l:"World of Pixar",bh:[10,11,19],ap:30,i:"🏁",sr:1,pa:0},
   };
 
