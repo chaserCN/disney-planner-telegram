@@ -59,6 +59,25 @@ const baselineRows = db.prepare(`
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY ride_id, hour, wait_time
 `);
+const historyStats = db.prepare(`
+  SELECT
+    COUNT(*) AS total_samples,
+    COUNT(DISTINCT ride_id) AS ride_count,
+    MIN(sampled_at) AS first_sample_at,
+    MAX(sampled_at) AS last_sample_at
+  FROM wait_samples
+`);
+const todayStats = db.prepare(`
+  SELECT COUNT(*) AS samples_today
+  FROM wait_samples
+  WHERE local_date = ?
+`);
+const dayTypeStats = db.prepare(`
+  SELECT day_type, COUNT(*) AS samples
+  FROM wait_samples
+  GROUP BY day_type
+  ORDER BY day_type
+`);
 
 const sampleCount = db.prepare("SELECT COUNT(*) AS count FROM wait_samples").get().count;
 console.log(`SQLite wait history: ${DB_PATH} (${sampleCount} samples)`);
@@ -107,6 +126,31 @@ app.get("/api/baseline", (req, res) => {
 
   res.set("Cache-Control", "public, max-age=300");
   res.json({ day_type: dayType, rides });
+});
+
+app.get("/api/history/status", (req, res) => {
+  const paris = getParisDateParts(new Date());
+  const stats = historyStats.get();
+  const byDayType = {};
+
+  for (const row of dayTypeStats.all()) {
+    byDayType[row.day_type] = row.samples;
+  }
+
+  res.set("Cache-Control", "no-store");
+  res.json({
+    ok: true,
+    db_path: DB_PATH,
+    collector_interval_minutes: COLLECT_INTERVAL_MS / 60000,
+    paris_now: `${paris.localDate} ${paris.localTime}`,
+    today_type: paris.dayType,
+    total_samples: stats.total_samples,
+    samples_today: todayStats.get(paris.localDate).samples_today,
+    ride_count: stats.ride_count,
+    first_sample_at: stats.first_sample_at,
+    last_sample_at: stats.last_sample_at,
+    by_day_type: byDayType
+  });
 });
 
 function percentile(sorted, p) {
@@ -217,7 +261,12 @@ async function collectWaitSamples() {
     }
 
     insertSamples(samples);
-    console.log(`Collected ${samples.length} wait samples (${paris.dayType} ${paris.localTime})`);
+    const stats = historyStats.get();
+    const samplesToday = todayStats.get(paris.localDate).samples_today;
+    console.log(
+      `Collected ${samples.length} wait samples (${paris.dayType} ${paris.localTime}); ` +
+      `total=${stats.total_samples}, today=${samplesToday}, rides=${stats.ride_count}, db=${DB_PATH}`
+    );
   } catch (err) {
     console.error("Failed to collect wait samples:", err.message);
   }
