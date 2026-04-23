@@ -211,7 +211,7 @@ async function checkAndSendAlerts(paris, livePerRideId) {
 }
 
 async function sendAlert(chatId, c) {
-  const ratioText = `в ${c.dropRatio >= 10 ? Math.round(c.dropRatio) : c.dropRatio.toFixed(1)}× короче`;
+  const ratioText = `в ${c.dropRatio >= 10 ? Math.round(c.dropRatio) : c.dropRatio.toFixed(1)} раз меньше`;
   const text =
     `🎯 *${escapeMarkdown(c.meta.name)}* — ${c.current} мин\n` +
     `Обычно в это время ~${c.median} мин (${ratioText})`;
