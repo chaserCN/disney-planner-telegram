@@ -633,7 +633,7 @@ function draw(){
       rides.forEach(e=>{h+=renderCard(e)});
       h+=`</div>`;
     });
-    h+=`<div class="lgd">${Object.entries(T).map(([_,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.lb}</span>`).join("")}<span>Single</span><span>Fast-pass</span></div>`;
+    h+=`<div class="lgd">${Object.entries(T).map(([_,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.lb}</span>`).join("")}</div>`;
   }
 
   // ═══ HEATMAP ═══
