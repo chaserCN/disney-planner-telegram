@@ -137,6 +137,33 @@
   .tips p { font-size:12px; color:var(--mu); line-height:1.6; }
   .tips b { color:var(--tx); }
 
+  /* Map view */
+  .mv-wrap { position:relative; width:100%; height:70vh; min-height:420px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; }
+  .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
+  .mv-img { display:block; width:100%; height:auto; -webkit-user-drag:none; pointer-events:none; }
+  .mv-pt { position:absolute; width:26px; height:26px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 2px 4px rgba(0,0,0,.5); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; }
+  .mv-pt.t-S { background:#8b5cf6; }
+  .mv-pt.t-A { background:#a78bfa; }
+  .mv-pt.t-B { background:#c4b5fd; }
+  .mv-pt.t-C { background:#94a3b8; }
+  .mv-pt.dim { opacity:.2; }
+  .mv-pt.sel { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); z-index:2; }
+  .mv-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:3; }
+  .mv-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
+  .mv-legend { position:absolute; left:8px; top:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; display:flex; gap:6px; flex-wrap:wrap; z-index:3; }
+  .mv-legend .d { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:3px; vertical-align:middle; }
+  .mv-popup { position:absolute; width:240px; max-width:calc(100% - 16px); padding:10px; background:var(--cd); border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.55); z-index:10; border:1px solid var(--bd); pointer-events:auto; }
+  .mv-popup .cl { position:absolute; top:4px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:transparent; color:var(--mu); font-size:18px; cursor:pointer; line-height:1; }
+  .mv-popup .tp { display:flex; align-items:center; gap:8px; margin-bottom:4px; padding-right:22px; }
+  .mv-popup .tp .em { font-size:22px; }
+  .mv-popup .tp .nm { font-weight:800; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mv-popup .sb { font-size:10px; color:var(--mu); display:flex; gap:3px; flex-wrap:wrap; margin-bottom:5px; }
+  .mv-popup .rw { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .mv-popup .bh { font-size:10px; color:var(--mu); margin-top:5px; line-height:1.4; }
+  .mv-popup .ar { position:absolute; width:10px; height:10px; background:var(--cd); border:1px solid var(--bd); transform:rotate(45deg); }
+  .mv-popup.up .ar { bottom:-6px; border-top:none; border-left:none; }
+  .mv-popup.down .ar { top:-6px; border-bottom:none; border-right:none; }
+
   /* Status bar */
   .sbar { 
     position:fixed; bottom:0; left:0; right:0; 
@@ -190,6 +217,30 @@ const R = {
   "Cars Road Trip":             {id:29,t:"B",tp:"прогулка",p:"s",l:"World of Pixar",bh:[10,11,14,15],ap:30,i:"🏎️",sr:0,pa:1},
   "Toy Soldiers":               {id:35,srid:7281,t:"C",tp:"башня",p:"s",l:"World of Pixar",bh:[10,11,15,16],ap:25,i:"🪖",sr:1,pa:0},
   "RC Racer":                   {id:34,srid:7280,t:"C",tp:"горки",p:"s",l:"World of Pixar",bh:[10,11,19],ap:30,i:"🏁",sr:1,pa:0},
+};
+
+const RC = {
+  "Big Thunder Mountain":       {mx:40.3,  my:39.94},
+  "Hyperspace Mountain":        {mx:77.59, my:21.94},
+  "Peter Pan's Flight":         {mx:32.11, my:21.02},
+  "Phantom Manor":              {mx:58.62, my:43.19},
+  "Pirates of the Caribbean":   {mx:25.65, my:23.8},
+  "Indiana Jones":              {mx:14.66, my:32.28},
+  "Buzz Lightyear Laser Blast": {mx:68.97, my:24.61},
+  "Star Tours":                 {mx:76.29, my:14.86},
+  "It's a Small World":         {mx:51.72, my:14.86},
+  "Autopia":                    {mx:76.51, my:23.92},
+  "Orbitron":                   {mx:72.84, my:22.29},
+  "Dumbo":                      {mx:37.93, my:18.23},
+  "Frozen Ever After":          {mx:26.94, my:96.95},
+  "Crush's Coaster":            {mx:71.34, my:66.65},
+  "Tower of Terror":            {mx:76.94, my:77.1},
+  "Ratatouille":                {mx:53.23, my:70.48},
+  "Avengers Assemble":          {mx:82.54, my:86.97},
+  "Spider-Man W.E.B.":          {mx:83.62, my:82.2},
+  "Cars Road Trip":             {mx:41.59, my:79.42},
+  "Toy Soldiers":               {mx:62.5,  my:73.61},
+  "RC Racer":                   {mx:57.97, my:76.17},
 };
 
 const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"9:30–23:00"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"9:30–21:00"} };
@@ -255,7 +306,8 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null};
+const MV = {scale:1,tx:0,ty:0,ready:false};
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
 
 // ── Fetch ───────────────────────────────────────────────────────────────────
@@ -272,6 +324,185 @@ async function fetchLive(){
       if(base)set({base,baseType:base.day_type});
     }).catch(()=>{});
   }catch{set({err:"Live недоступны",ld:false})}
+}
+
+async function loadCoords(){
+  try{
+    const r=await fetch("/api/coords");
+    const coords=await r.json();
+    if(coords&&Object.keys(coords).length)set({coords});
+  }catch{}
+}
+
+// ── Map view (pan + pinch zoom) ────────────────────────────────────────────
+function mvApply(){
+  const s=document.getElementById("mv-scene");
+  if(!s)return;
+  s.style.transform=`translate(${MV.tx}px,${MV.ty}px) scale(${MV.scale})`;
+  mvPositionPopup();
+}
+
+function mvPositionPopup(){
+  const pop=document.getElementById("mv-popup");
+  if(!pop)return;
+  const wrap=document.getElementById("mv-wrap");
+  const img=document.getElementById("mv-img");
+  if(!wrap||!img||!img.naturalWidth)return;
+  const mx=Number(pop.dataset.mx), my=Number(pop.dataset.my);
+  const baseW=wrap.clientWidth;
+  const baseH=img.naturalHeight*(baseW/img.naturalWidth);
+  const px=MV.tx+(mx/100)*baseW*MV.scale;
+  const py=MV.ty+(my/100)*baseH*MV.scale;
+  const cw=wrap.clientWidth, ch=wrap.clientHeight;
+  const pw=pop.offsetWidth, ph=pop.offsetHeight;
+  const gap=16;
+  const flipUp=py+gap+ph>ch-8;
+  pop.classList.toggle("up",flipUp);
+  pop.classList.toggle("down",!flipUp);
+  const top=flipUp?Math.max(8,py-gap-ph):Math.min(ch-ph-8,py+gap);
+  const left=Math.min(cw-pw-8,Math.max(8,px-pw/2));
+  pop.style.top=top+"px";
+  pop.style.left=left+"px";
+  const arrow=pop.querySelector(".ar");
+  if(arrow){
+    const ax=Math.min(pw-14,Math.max(4,px-left-5));
+    arrow.style.left=ax+"px";
+  }
+}
+
+function mvClampPan(){
+  const wrap=document.getElementById("mv-wrap");
+  const img=document.getElementById("mv-img");
+  if(!wrap||!img||!img.naturalWidth)return;
+  const cw=wrap.clientWidth, ch=wrap.clientHeight;
+  const iw=wrap.clientWidth*MV.scale;
+  const ih=(img.naturalHeight*(wrap.clientWidth/img.naturalWidth))*MV.scale;
+  const minX=Math.min(0,cw-iw), maxX=Math.max(0,cw-iw);
+  const minY=Math.min(0,ch-ih), maxY=Math.max(0,ch-ih);
+  MV.tx=Math.min(maxX,Math.max(minX,MV.tx));
+  MV.ty=Math.min(maxY,Math.max(minY,MV.ty));
+}
+
+function mvZoomAt(cx,cy,factor){
+  const wrap=document.getElementById("mv-wrap");
+  if(!wrap)return;
+  const r=wrap.getBoundingClientRect();
+  const px=cx-r.left, py=cy-r.top;
+  const ns=Math.min(5,Math.max(1,MV.scale*factor));
+  const k=ns/MV.scale;
+  MV.tx=px-(px-MV.tx)*k;
+  MV.ty=py-(py-MV.ty)*k;
+  MV.scale=ns;
+  mvClampPan();
+  mvApply();
+}
+
+function mvZoom(delta){
+  const wrap=document.getElementById("mv-wrap");
+  if(!wrap)return;
+  const r=wrap.getBoundingClientRect();
+  mvZoomAt(r.left+r.width/2,r.top+r.height/2,delta);
+}
+
+function mvReset(){
+  MV.scale=1;MV.tx=0;MV.ty=0;
+  mvApply();
+}
+
+function mvInit(){
+  if(MV.ready)return;
+  const wrap=document.getElementById("mv-wrap");
+  if(!wrap)return;
+  MV.ready=true;
+
+  let pts=new Map(), startDist=0, startScale=1, panStart=null, moved=false, downTarget=null;
+
+  wrap.addEventListener("pointerdown",e=>{
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===1){
+      moved=false;
+      panStart={x:e.clientX-MV.tx,y:e.clientY-MV.ty};
+      downTarget=e.target.closest(".mv-pt")||null;
+    } else if(pts.size===2){
+      const [a,b]=[...pts.values()];
+      startDist=Math.hypot(a.x-b.x,a.y-b.y);
+      startScale=MV.scale;
+      panStart=null;
+      downTarget=null;
+    }
+  });
+
+  wrap.addEventListener("pointermove",e=>{
+    if(!pts.has(e.pointerId))return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===1&&panStart){
+      const nx=e.clientX-panStart.x, ny=e.clientY-panStart.y;
+      if(!moved&&(Math.abs(nx-MV.tx)>3||Math.abs(ny-MV.ty)>3)){
+        moved=true;
+        try{wrap.setPointerCapture(e.pointerId)}catch{}
+      }
+      if(!moved)return;
+      MV.tx=nx;MV.ty=ny;
+      mvClampPan();mvApply();
+    } else if(pts.size===2){
+      const [a,b]=[...pts.values()];
+      const d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(startDist>0){
+        const cx=(a.x+b.x)/2, cy=(a.y+b.y)/2;
+        const ns=Math.min(5,Math.max(1,startScale*(d/startDist)));
+        const k=ns/MV.scale;
+        const r=wrap.getBoundingClientRect();
+        const px=cx-r.left, py=cy-r.top;
+        MV.tx=px-(px-MV.tx)*k;
+        MV.ty=py-(py-MV.ty)*k;
+        MV.scale=ns;
+        mvClampPan();mvApply();
+      }
+      moved=true;
+    }
+  });
+
+  wrap.addEventListener("pointerup",e=>{
+    if(!moved&&pts.size===1){
+      const closeBtn=e.target.closest("[data-close]");
+      const popup=e.target.closest(".mv-popup");
+      if(closeBtn){mvClosePopup()}
+      else if(downTarget){
+        const name=downTarget.getAttribute("data-ride");
+        if(name)mvPickRide(name);
+      } else if(!popup){
+        mvClosePopup();
+      }
+    }
+    pts.delete(e.pointerId);
+    if(pts.size<2)startDist=0;
+    if(pts.size===0){panStart=null;downTarget=null}
+  });
+  wrap.addEventListener("pointercancel",e=>{
+    pts.delete(e.pointerId);
+    if(pts.size<2)startDist=0;
+    if(pts.size===0){panStart=null;downTarget=null}
+  });
+
+  wrap.addEventListener("wheel",e=>{
+    e.preventDefault();
+    mvZoomAt(e.clientX,e.clientY,e.deltaY<0?1.15:1/1.15);
+  },{passive:false});
+
+}
+
+function mvPickRide(name){
+  set({msel:S.msel===name?null:name});
+}
+
+function mvClosePopup(e){
+  if(e)e.stopPropagation();
+  set({msel:null});
+}
+
+const TIER_STARS={S:5,A:4,B:3,C:2};
+function tierMinStars(filter){
+  return {all:0,"5":5,"4":4,"3":3}[filter]||0;
 }
 
 async function loadBaseline(dayType){
@@ -295,11 +526,11 @@ function draw(){
     <div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Live ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div>
   </div>`;
 
-  h+=`<div class="tabs">${[["ranking","🏆 Рейтинг"],["heatmap","🔥 Часы"],["plan","📋 План"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
+  h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["plan","📋"],["map","🗺️"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
 
   // ═══ RANKING ═══
   if(S.tab==="ranking"){
-    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       const rides=bp(k);if(!rides.length)return;
       const p=P[k];
@@ -323,7 +554,7 @@ function draw(){
 
   // ═══ HEATMAP ═══
   if(S.tab==="heatmap"){
-    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="flt">${["weekday","weekend","holiday"].map(t=>`<button class="pl ${S.baseType===t?"on":""}" onclick="loadBaseline('${t}')">${dayLabel(t)}</button>`).join("")}</div>`;
     h+=`<div class="hm-w"><div class="hm-i"><div class="hm-h"><div class="l"></div>${Array.from({length:14},(_,i)=>`<div class="h">${i+9}</div>`).join("")}</div>`;
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
@@ -355,14 +586,69 @@ function draw(){
     h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Tower, Hyperspace, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — €7–21. Приоритет: Crush's и Peter Pan<br><br><b>Парад ~17:30</b> — очереди -30–50%<br><br><b>Disneyland Paris App</b> — live очереди в парке</p></div>`;
   }
 
+  // ═══ MAP ═══
+  if(S.tab==="map"){
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
+
+    const minStars=tierMinStars(S.mrt);
+    const visible=n=>{
+      const m=R[n];if(!m||!S.coords[n])return false;
+      if(S.pf!=="all"&&m.p!==S.pf)return false;
+      if(TIER_STARS[m.t]<minStars)return false;
+      return true;
+    };
+
+    h+=`<div class="mv-wrap" id="mv-wrap">`;
+    h+=`<div class="mv-legend">`+Object.entries(T).map(([k,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.stars}</span>`).join("")+`</div>`;
+    h+=`<div class="mv-scene" id="mv-scene">`;
+    h+=`<img class="mv-img" id="mv-img" src="map.jpg" ondragstart="return false">`;
+    Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t)).forEach(([n,m])=>{
+      const c=S.coords[n];if(!c)return;
+      const vis=visible(n);
+      const sel=S.msel===n;
+      h+=`<div class="mv-pt t-${m.t} ${vis?'':'dim'} ${sel?'sel':''}" style="left:${c.mx}%;top:${c.my}%" data-ride="${esc(n).replace(/"/g,'&quot;')}">${m.i}</div>`;
+    });
+    h+=`</div>`;
+
+    if(S.msel&&R[S.msel]&&S.coords[S.msel]){
+      const n=S.msel, m=R[n], c=S.coords[n];
+      const lv=liveRide(n,m);
+      const slv=singleRide(m);
+      let badge='';
+      if(S.ld)badge='<span class="lv lv-off">⏳ ждём live</span>';
+      else if(!lv)badge='<span class="lv lv-off">нет live</span>';
+      else if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
+      else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
+      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
+      const fastTag=m.pa?'<span class="tg-p">Fast-pass</span>':'';
+      h+=`<div class="mv-popup" id="mv-popup" data-mx="${c.mx}" data-my="${c.my}">
+        <span class="ar"></span>
+        <button class="cl" data-close="1">×</button>
+        <div class="tp"><span class="em">${m.i}</span><div style="flex:1;min-width:0"><div class="nm">${esc(n)}</div></div></div>
+        <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>
+        <div class="rw"><span class="tier t-${m.t}">${T[m.t].stars}</span>${fastTag}</div>
+        <div class="rw" style="margin-top:5px">${badge}${singleBadge}</div>
+        <div class="bh">${baseText(m,lv)}</div>
+      </div>`;
+    }
+    h+=`</div>`;
+  }
+
   // Status bar
   h+=`<div class="sbar"><div>${S.upd?`${S.upd.toLocaleTimeString()}`:''}${S.err?` <span class="err">${S.err}</span>`:''}</div><button onclick="fetchLive()" ${S.ld?'disabled':''}>${S.ld?'⏳':'🔄 Live'}</button></div>`;
 
   $.innerHTML=h;
+
+  if(S.tab==="map"){
+    MV.ready=false;
+    requestAnimationFrame(()=>{mvInit();mvApply()});
+  }
 }
 
 draw();
 fetchLive();
+loadCoords();
 </script>
 </body>
 </html>

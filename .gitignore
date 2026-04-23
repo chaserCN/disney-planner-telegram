@@ -5,3 +5,4 @@ data/
 *.sqlite-shm
 *.sqlite-wal
 .env
+public/calibrate.html

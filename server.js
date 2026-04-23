@@ -83,7 +83,45 @@ const sampleCount = db.prepare("SELECT COUNT(*) AS count FROM wait_samples").get
 console.log(`SQLite wait history: ${DB_PATH} (${sampleCount} samples)`);
 
 // ── Queue-Times API proxy (solves CORS) ─────────────────────────────────────
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+
+const COORDS_PATH = path.join(__dirname, "data", "ride-coords.json");
+
+function readCoords() {
+  try {
+    return JSON.parse(fs.readFileSync(COORDS_PATH, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeCoords(coords) {
+  fs.writeFileSync(COORDS_PATH, JSON.stringify(coords, null, 2));
+}
+
+app.get("/api/coords", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(readCoords());
+});
+
+app.post("/api/coords", (req, res) => {
+  const { name, mx, my } = req.body || {};
+  if (typeof name !== "string" || !name || typeof mx !== "number" || typeof my !== "number") {
+    return res.status(400).json({ error: "Expected {name, mx, my}" });
+  }
+  const coords = readCoords();
+  coords[name] = { mx: Math.round(mx * 100) / 100, my: Math.round(my * 100) / 100 };
+  writeCoords(coords);
+  res.json({ ok: true, coords });
+});
+
+app.delete("/api/coords/:name", (req, res) => {
+  const coords = readCoords();
+  delete coords[req.params.name];
+  writeCoords(coords);
+  res.json({ ok: true, coords });
+});
 
 async function fetchParkQueue(parkId) {
   const r = await fetch(`https://queue-times.com/parks/${parkId}/queue_times.json`);
