@@ -159,6 +159,8 @@
   .mv-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .mv-legend { position:absolute; left:8px; top:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; display:flex; gap:6px; flex-wrap:wrap; z-index:3; }
   .mv-legend .d { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:3px; vertical-align:middle; }
+  .mv-tools { position:absolute; right:8px; top:8px; display:flex; gap:6px; z-index:3; }
+  .mv-tool { padding:7px 10px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
   .mv-popup { position:absolute; width:280px; max-width:calc(100% - 16px); padding:12px 14px; background:var(--cd); border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.55); z-index:10; border:1px solid var(--bd); pointer-events:auto; }
   .mv-popup .cl { position:absolute; top:4px; right:6px; width:30px; height:30px; border-radius:50%; border:none; background:transparent; color:var(--mu); font-size:22px; cursor:pointer; line-height:1; }
   .mv-popup .tp { display:flex; align-items:center; gap:10px; margin-bottom:6px; padding-right:28px; }
@@ -170,6 +172,8 @@
   .mv-popup .ar { position:absolute; width:10px; height:10px; background:var(--cd); border:1px solid var(--bd); transform:rotate(45deg); }
   .mv-popup.up .ar { bottom:-6px; border-top:none; border-left:none; }
   .mv-popup.down .ar { top:-6px; border-bottom:none; border-right:none; }
+
+  .usr-pt { position:absolute; width:18px; height:18px; border-radius:50%; background:#3b82f6; border:3px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 2px rgba(59,130,246,.35), 0 0 0 8px rgba(59,130,246,.18); }
 
   /* Pull to refresh */
   .ptr { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--mu); font-weight:700; pointer-events:none; z-index:30; padding-top:var(--safe-top); transition:transform .2s; transform:translateY(-60px); }
@@ -199,6 +203,12 @@ const { R, RC } = window.RIDES_DATA;
 
 const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"9:30–23:00"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"9:30–21:00"} };
 const T = {S:{bg:"#8b5cf6",tx:"#fff",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#c4b5fd",tx:"#2e1065",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
+const DEFAULT_CALIBRATION_POINTS = [
+  {id:1,name:"Cal 1",lat:48.87261,lng:2.77677,mx:58.28,my:29.81},
+  {id:2,name:"Cal 2",lat:48.86689,lng:2.77927,mx:81.25,my:75.19},
+  {id:3,name:"Cal 3",lat:48.87226,lng:2.77413,mx:32.65,my:32.28},
+  {id:4,name:"Cal 4",lat:48.87384,lng:2.77963,mx:85.55,my:19.98},
+];
 
 const STR = [
   {id:"s1",tt:"Adventure World → Главный",sub:"Frozen утром, замок и фейерверк вечером. 1 переход",em:"🎬→🏰",
@@ -261,7 +271,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null};
 const MV = {scale:1,tx:0,ty:0,ready:false};
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
 
@@ -358,6 +368,101 @@ async function loadSubscription(){
     const j=await r.json();
     set({sub:!!j.subscribed});
   }catch{}
+}
+
+function solve3(A,b){
+  const M=A.map((row,i)=>row.slice().concat(b[i]));
+  for(let col=0;col<3;col++){
+    let pivot=col;
+    for(let r=col+1;r<3;r++)if(Math.abs(M[r][col])>Math.abs(M[pivot][col]))pivot=r;
+    if(Math.abs(M[pivot][col])<1e-12)return null;
+    [M[col],M[pivot]]=[M[pivot],M[col]];
+    const p=M[col][col];
+    for(let j=col;j<4;j++)M[col][j]/=p;
+    for(let r=0;r<3;r++){
+      if(r===col)continue;
+      const f=M[r][col];
+      for(let j=col;j<4;j++)M[r][j]-=f*M[col][j];
+    }
+  }
+  return M.map(row=>row[3]);
+}
+
+function calibrationModel(){
+  const source=DEFAULT_CALIBRATION_POINTS;
+  const lat0=source.reduce((sum,p)=>sum+p.lat,0)/source.length;
+  const Rm=6371000;
+  const cos0=Math.cos(lat0*Math.PI/180);
+  const points=source.map(p=>{
+    const x=(p.lng*Math.PI/180)*Rm*cos0;
+    const y=(p.lat*Math.PI/180)*Rm;
+    return {x,y,mx:p.mx,my:p.my};
+  });
+  const XT_X=[[0,0,0],[0,0,0],[0,0,0]], XT_mx=[0,0,0], XT_my=[0,0,0];
+  points.forEach(p=>{
+    const row=[p.x,p.y,1];
+    for(let i=0;i<3;i++){
+      XT_mx[i]+=row[i]*p.mx;
+      XT_my[i]+=row[i]*p.my;
+      for(let j=0;j<3;j++)XT_X[i][j]+=row[i]*row[j];
+    }
+  });
+  const ax=solve3(XT_X,XT_mx), ay=solve3(XT_X,XT_my);
+  if(!ax||!ay)return null;
+  const det=ax[0]*ay[1]-ax[1]*ay[0];
+  if(Math.abs(det)<1e-12)return null;
+  return {lat0,cos0,ax,ay,det};
+}
+
+function calibrationPredict(mx,my){
+  const model=calibrationModel();
+  if(!model)return null;
+  const {ax,ay,det,cos0}=model;
+  const x=((mx-ax[2])*ay[1]-ax[1]*(my-ay[2]))/det;
+  const y=(ax[0]*(my-ay[2])-ay[0]*(mx-ax[2]))/det;
+  const lat=(y/6371000)*(180/Math.PI);
+  const lng=(x/(6371000*cos0))*(180/Math.PI);
+  return {lat,lng,mx,my};
+}
+
+function calibrationProject(lat,lng){
+  const model=calibrationModel();
+  if(!model)return null;
+  const {ax,ay,cos0}=model;
+  const x=(lng*Math.PI/180)*6371000*cos0;
+  const y=(lat*Math.PI/180)*6371000;
+  return {mx:ax[0]*x+ax[1]*y+ax[2],my:ay[0]*x+ay[1]*y+ay[2],lat,lng};
+}
+
+function requestUserLocation(){
+  if(!navigator.geolocation){
+    alert("Геолокация недоступна");
+    return;
+  }
+  set({geoBusy:true,geoMsg:null});
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const projected=calibrationProject(pos.coords.latitude,pos.coords.longitude);
+    if(!projected){
+      set({userPos:null,geoBusy:false,geoMsg:"Вы вне зоны карты"});
+      return;
+    }
+    if(projected.mx<0||projected.mx>100||projected.my<0||projected.my>100){
+      set({userPos:null,geoBusy:false,geoMsg:"Вы вне зоны карты"});
+      return;
+    }
+    set({userPos:projected,geoBusy:false,geoMsg:null});
+    const wrap=document.getElementById("mv-wrap");
+    const img=document.getElementById("mv-img");
+    if(!wrap||!img||!img.naturalWidth)return;
+    const cw=wrap.clientWidth, ch=wrap.clientHeight;
+    const baseW=cw, baseH=img.naturalHeight*(cw/img.naturalWidth);
+    MV.tx=cw/2-(projected.mx/100)*baseW*MV.scale;
+    MV.ty=ch/2-(projected.my/100)*baseH*MV.scale;
+    mvClampPan();mvApply();
+  },()=>{
+    set({geoBusy:false,geoMsg:null});
+    alert("Не удалось получить геолокацию");
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:15000});
 }
 
 async function toggleSubscription(){
@@ -685,8 +790,13 @@ function draw(){
 
     h+=`<div class="mv-wrap" id="mv-wrap">`;
     h+=`<div class="mv-legend">`+Object.entries(T).map(([k,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.stars}</span>`).join("")+`</div>`;
+    h+=`<div class="mv-tools"><button class="mv-tool" onclick="requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
+    if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="mv-scene" id="mv-scene">`;
     h+=`<img class="mv-img" id="mv-img" src="map.jpg" ondragstart="return false">`;
+    if(S.userPos&&Number.isFinite(S.userPos.mx)&&Number.isFinite(S.userPos.my)){
+      h+=`<div class="usr-pt" style="left:${S.userPos.mx}%;top:${S.userPos.my}%"></div>`;
+    }
     Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t)).forEach(([n,m])=>{
       const c=S.coords[n];if(!c)return;
       const vis=visible(n);
@@ -730,7 +840,6 @@ function draw(){
     }
     h+=`</div>`;
   }
-
 
   $.innerHTML=h;
 
