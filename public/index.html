@@ -66,6 +66,7 @@
   .rc .bd { flex:1; min-width:0; }
   .rc .rn { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rc .rm { font-size:11px; color:var(--mu); margin-top:2px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+  .rc .tags { margin-top:2px; display:flex; gap:4px; flex-wrap:wrap; }
   .rc .bh { font-size:11px; color:var(--mu); margin-top:1px; }
   .rc .rt { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
   .tier { font-size:10px; font-weight:800; padding:2px 6px; border-radius:3px; white-space:nowrap; letter-spacing:0; }
@@ -81,7 +82,7 @@
   .cmp-bad { color:#f97316; }
   .cmp-low { color:var(--mu); }
   .tg-s { background:#164e63; color:#a5f3fc; }
-  .tg-p { color:#fbbf24; font-weight:700; }
+  .tg-p { color:#fbbf24; font-weight:700; font-size:11px; }
 
   /* Legend */
   .lgd { padding:9px; background:var(--cd); border-radius:8px; display:flex; gap:9px; flex-wrap:wrap; font-size:11px; color:var(--mu); margin-top:6px; }
@@ -313,7 +314,7 @@ function draw(){
           if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
           else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
         }
-        h+=`<div class="rc ${pk(m.p)}"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span>${m.pa?'<span class="tg-p">Fast-pass</span>':''}</div><div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
+        h+=`<div class="rc ${pk(m.p)}"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${m.pa?'<div class="tags"><span class="tg-p">Fast-pass</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
       });
       h+=`</div>`;
     });
