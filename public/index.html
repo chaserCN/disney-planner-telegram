@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Disney Paris Planner</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="rides-data.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -34,7 +35,10 @@
   /* Header */
   .hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; padding-top:2px; }
   .hdr h1 { font-size:20px; font-weight:800; letter-spacing:0; }
+  .hdr-r { display:flex; align-items:center; gap:10px; }
   .live-mini { font-size:12px; color:var(--mu); white-space:nowrap; font-weight:700; }
+  .sub-btn { width:34px; height:34px; border-radius:50%; border:1px solid var(--bd); background:var(--cd); color:var(--tx); font-size:16px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; }
+  .sub-btn.on { background:color-mix(in srgb, var(--ac) 20%, var(--cd)); border-color:var(--ac); }
 
   /* Tabs */
   .tabs { display:flex; gap:2px; background:var(--cd); border-radius:12px; padding:3px; margin-bottom:12px; position:sticky; top:0; z-index:10; }
@@ -191,51 +195,7 @@ if (tg) {
 }
 
 // ── Data ────────────────────────────────────────────────────────────────────
-const R = {
-  "Big Thunder Mountain":       {id:25,t:"S",tp:"горки",p:"d",l:"Frontierland",bh:[9,10,20,21],ap:70,i:"⛰️",sr:0,pa:1},
-  "Hyperspace Mountain":        {id:8,srid:7278,t:"S",tp:"горки",p:"d",l:"Discoveryland",bh:[9,10,21,22],ap:60,i:"🚀",sr:1,pa:1},
-  "Frozen Ever After":          {id:15413,t:"S",tp:"сюжет лодки",p:"s",l:"World of Frozen",bh:[9,10,20],ap:80,i:"❄️",sr:0,pa:1},
-  "Peter Pan's Flight":         {id:22,t:"S",tp:"сюжет",p:"d",l:"Fantasyland",bh:[9,21,22],ap:75,i:"🧚",sr:0,pa:1},
-  "Phantom Manor":              {id:26,t:"S",tp:"сюжет",p:"d",l:"Frontierland",bh:[9,10,12,13,20],ap:45,i:"👻",sr:0,pa:0},
-  "Pirates of the Caribbean":   {id:3,t:"A",tp:"сюжет лодки",p:"d",l:"Adventureland",bh:[9,10,13,14,20],ap:40,i:"🏴‍☠️",sr:0,pa:1},
-  "Indiana Jones":              {id:2,srid:7306,t:"A",tp:"горки",p:"d",l:"Adventureland",bh:[9,10,20,21],ap:50,i:"🏺",sr:1,pa:0},
-  "Buzz Lightyear Laser Blast": {id:5,t:"B",tp:"интерактив",p:"d",l:"Discoveryland",bh:[9,10,13,20],ap:40,i:"🔫",sr:0,pa:1},
-  "Star Tours":                 {id:9,t:"B",tp:"3D-полёт",p:"d",l:"Discoveryland",bh:[10,11,14,20],ap:30,i:"⭐",sr:0,pa:1},
-  "It's a Small World":         {id:19,t:"C",tp:"сюжет лодки",p:"d",l:"Fantasyland",bh:[12,13,14,15],ap:20,i:"🌍",sr:0,pa:0},
-  "Autopia":                    {id:4,t:"C",tp:"вождение",p:"d",l:"Discoveryland",bh:[10,11,19,20],ap:35,i:"🚗",sr:0,pa:1},
-  "Orbitron":                   {id:7,t:"C",tp:"карусель",p:"d",l:"Discoveryland",bh:[10,11,20],ap:30,i:"🛸",sr:0,pa:1},
-  "Crush's Coaster":            {id:32,srid:7277,t:"S",tp:"горки",p:"s",l:"World of Pixar",bh:[9,21],ap:90,i:"🐢",sr:1,pa:1},
-  "Tower of Terror":            {id:40,t:"S",tp:"башня",p:"s",l:"Production Courtyard",bh:[9,10,20,21],ap:55,i:"🏚️",sr:1,pa:1},
-  "Ratatouille":                {id:37,srid:7279,t:"S",tp:"сюжет",p:"s",l:"World of Pixar",bh:[9,10,21,22],ap:65,i:"🐀",sr:1,pa:1},
-  "Avengers Assemble":          {id:10848,srid:10849,t:"A",tp:"горки",p:"s",l:"Avengers Campus",bh:[9,10,20,21],ap:50,i:"🦸",sr:1,pa:1},
-  "Spider-Man W.E.B.":          {id:10845,srid:10846,t:"B",tp:"интерактив",p:"s",l:"Avengers Campus",bh:[10,14,20],ap:35,i:"🕷️",sr:1,pa:0},
-  "Cars Road Trip":             {id:29,t:"B",tp:"прогулка",p:"s",l:"World of Pixar",bh:[10,11,14,15],ap:30,i:"🏎️",sr:0,pa:1},
-  "Toy Soldiers":               {id:35,srid:7281,t:"C",tp:"башня",p:"s",l:"World of Pixar",bh:[10,11,15,16],ap:25,i:"🪖",sr:1,pa:0},
-  "RC Racer":                   {id:34,srid:7280,t:"C",tp:"горки",p:"s",l:"World of Pixar",bh:[10,11,19],ap:30,i:"🏁",sr:1,pa:0},
-};
-
-const RC = {
-  "Big Thunder Mountain":       {mx:40.3,  my:39.94},
-  "Hyperspace Mountain":        {mx:77.59, my:21.94},
-  "Peter Pan's Flight":         {mx:32.11, my:21.02},
-  "Phantom Manor":              {mx:58.62, my:43.19},
-  "Pirates of the Caribbean":   {mx:25.65, my:23.8},
-  "Indiana Jones":              {mx:14.66, my:32.28},
-  "Buzz Lightyear Laser Blast": {mx:68.97, my:24.61},
-  "Star Tours":                 {mx:76.29, my:14.86},
-  "It's a Small World":         {mx:51.72, my:14.86},
-  "Autopia":                    {mx:76.51, my:23.92},
-  "Orbitron":                   {mx:72.84, my:22.29},
-  "Frozen Ever After":          {mx:26.94, my:96.95},
-  "Crush's Coaster":            {mx:71.34, my:66.65},
-  "Tower of Terror":            {mx:76.94, my:77.1},
-  "Ratatouille":                {mx:53.23, my:70.48},
-  "Avengers Assemble":          {mx:82.54, my:86.97},
-  "Spider-Man W.E.B.":          {mx:83.62, my:82.2},
-  "Cars Road Trip":             {mx:41.59, my:79.42},
-  "Toy Soldiers":               {mx:62.5,  my:73.61},
-  "RC Racer":                   {mx:57.97, my:76.17},
-};
+const { R, RC } = window.RIDES_DATA;
 
 const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"9:30–23:00"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"9:30–21:00"} };
 const T = {S:{bg:"#8b5cf6",tx:"#fff",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#c4b5fd",tx:"#2e1065",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
@@ -301,7 +261,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null};
 const MV = {scale:1,tx:0,ty:0,ready:false};
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
 
@@ -387,6 +347,31 @@ async function loadCoords(){
     const r=await fetch("/api/coords");
     const coords=await r.json();
     if(coords&&Object.keys(coords).length)set({coords});
+  }catch{}
+}
+
+async function loadSubscription(){
+  if(!tg||!tg.initData)return;
+  try{
+    const r=await fetch("/api/subscription-status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData})});
+    if(!r.ok)return;
+    const j=await r.json();
+    set({sub:!!j.subscribed});
+  }catch{}
+}
+
+async function toggleSubscription(){
+  if(!tg||!tg.initData){
+    alert("Подписка доступна только внутри Telegram");
+    return;
+  }
+  const endpoint=S.sub?"/api/unsubscribe":"/api/subscribe";
+  try{
+    const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData})});
+    if(!r.ok)return;
+    const j=await r.json();
+    set({sub:!!j.subscribed});
+    if(tg)tg.HapticFeedback?.notificationOccurred?.("success");
   }catch{}
 }
 
@@ -597,15 +582,29 @@ async function loadBaseline(dayType){
 }
 
 // ── Render ───────────────────────────────────────────────────────────────────
+function rideWaitSort(entries){
+  return entries.slice().sort((a,b)=>{
+    const la=liveRide(a[0],a[1]), lb=liveRide(b[0],b[1]);
+    const va=la&&la.is_open?la.wait_time:Infinity;
+    const vb=lb&&lb.is_open?lb.wait_time:Infinity;
+    if(va!==vb)return va-vb;
+    return "SABC".indexOf(a[1].t)-"SABC".indexOf(b[1].t);
+  });
+}
+
 function draw(){
   const $=document.getElementById("app");
   const fl=Object.entries(R).filter(([_,m])=>S.pf==="all"||m.p===S.pf).sort((a,b)=>"SABC".indexOf(a[1].t)-"SABC".indexOf(b[1].t));
   const bp=k=>fl.filter(([_,m])=>m.p===k);
   const hasLive=!!S.live&&Object.keys(S.live).length>0;
 
+  const subBtn=S.sub===null?'':(S.sub
+    ?`<button class="sub-btn on" onclick="toggleSubscription()" title="Уведомления включены">🔔</button>`
+    :`<button class="sub-btn" onclick="toggleSubscription()" title="Включить уведомления">🔕</button>`);
+
   let h=`<div class="hdr">
     <h1>Disneyland Paris</h1>
-    <div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Live ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div>
+    <div class="hdr-r">${subBtn}<div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Live ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
   </div>`;
 
   h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
@@ -613,22 +612,25 @@ function draw(){
   // ═══ RANKING ═══
   if(S.tab==="ranking"){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${[["tier","По рейтингу"],["wait","По времени"]].map(([k,l])=>`<button class="pl ${S.rsort===k?"on":""}" onclick="set({rsort:'${k}'})">${l}</button>`).join("")}</div>`;
+    const renderCard=([n,m])=>{
+      const lv=liveRide(n,m);
+      const slv=singleRide(m);
+      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
+      let badge='<span style="font-size:9px;color:var(--mu)">—</span>';
+      if(S.ld)badge='<span style="font-size:9px;color:var(--mu)">⏳</span>';
+      else if(lv){
+        if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
+        else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
+      }
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${m.pa?'<div class="tags"><span class="tg-p">Fast-pass</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
+    };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
-      const rides=bp(k);if(!rides.length)return;
+      let rides=bp(k);if(!rides.length)return;
+      if(S.rsort==="wait")rides=rideWaitSort(rides);
       const p=P[k];
       h+=`<div class="ps"><div class="psh ${pk(k)}"><span class="em">${p.e}</span><span class="nm">${p.n}</span><span class="hr">${p.h}</span></div>`;
-      rides.forEach(([n,m])=>{
-        const lv=liveRide(n,m);
-        const slv=singleRide(m);
-        const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
-        let badge='<span style="font-size:9px;color:var(--mu)">—</span>';
-        if(S.ld)badge='<span style="font-size:9px;color:var(--mu)">⏳</span>';
-        else if(lv){
-          if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
-          else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
-        }
-        h+=`<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${m.pa?'<div class="tags"><span class="tg-p">Fast-pass</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
-      });
+      rides.forEach(e=>{h+=renderCard(e)});
       h+=`</div>`;
     });
     h+=`<div class="lgd">${Object.entries(T).map(([_,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.lb}</span>`).join("")}<span>Single</span><span>Fast-pass</span></div>`;
@@ -741,6 +743,7 @@ function draw(){
 draw();
 fetchLive();
 loadCoords();
+loadSubscription();
 initPullToRefresh();
 </script>
 </body>

@@ -3,12 +3,24 @@ const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
 const TelegramBot = require("node-telegram-bot-api");
+const { R: RIDES } = require("./public/rides-data");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PARK_IDS = [4, 28];
 const COLLECT_INTERVAL_MS = 10 * 60 * 1000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "disney.sqlite");
+
+const COLLECT_HOUR_START = 9;
+const COLLECT_HOUR_END = 23;
+const ALERT_HOUR_START = 9;
+const ALERT_HOUR_END = 22;
+const ALERT_CURRENT_MAX_WAIT = 10;
+const ALERT_BASELINE_MIN_WAIT = 30;
+const ALERT_MIN_BASELINE_SAMPLES = 24;
+const ALERT_DEBOUNCE_MS = 60 * 60 * 1000;
+const ALERT_BURST_WINDOW_MS = 10 * 60 * 1000;
+const ALERT_BURST_LIMIT = 3;
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
@@ -35,6 +47,21 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_wait_samples_date
     ON wait_samples (local_date);
+
+  CREATE TABLE IF NOT EXISTS subscribers (
+    chat_id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS alerts_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    ride_id INTEGER NOT NULL,
+    sent_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_alerts_log_lookup
+    ON alerts_log (chat_id, ride_id, sent_at);
 `);
 
 const insertSample = db.prepare(`
@@ -79,8 +106,122 @@ const dayTypeStats = db.prepare(`
   ORDER BY day_type
 `);
 
+const subscribersAll = db.prepare("SELECT chat_id FROM subscribers");
+const subscribeStmt = db.prepare(
+  "INSERT OR IGNORE INTO subscribers (chat_id, created_at) VALUES (?, ?)"
+);
+const unsubscribeStmt = db.prepare("DELETE FROM subscribers WHERE chat_id = ?");
+const isSubscribedStmt = db.prepare("SELECT 1 FROM subscribers WHERE chat_id = ?");
+const recentAlertByRide = db.prepare(
+  "SELECT 1 FROM alerts_log WHERE chat_id = ? AND ride_id = ? AND sent_at >= ? LIMIT 1"
+);
+const recentAlertsCount = db.prepare(
+  "SELECT COUNT(*) AS c FROM alerts_log WHERE chat_id = ? AND sent_at >= ?"
+);
+const insertAlert = db.prepare(
+  "INSERT INTO alerts_log (chat_id, ride_id, sent_at) VALUES (?, ?, ?)"
+);
+const baselineForRide = db.prepare(`
+  SELECT wait_time
+  FROM wait_samples
+  WHERE day_type = ?
+    AND ride_id = ?
+    AND hour = ?
+    AND is_open = 1
+    AND sampled_at >= datetime('now', '-120 days')
+  ORDER BY wait_time
+`);
+
 const sampleCount = db.prepare("SELECT COUNT(*) AS count FROM wait_samples").get().count;
 console.log(`SQLite wait history: ${DB_PATH} (${sampleCount} samples)`);
+
+let botInstance = null;
+let appUrl = null;
+
+const rideByIdIndex = new Map();
+for (const [name, meta] of Object.entries(RIDES)) {
+  rideByIdIndex.set(meta.id, { name, ...meta });
+}
+const ALERT_TIER_SET = new Set(["S", "A"]);
+
+function percentileFromSorted(sortedValues, p) {
+  if (!sortedValues.length) return null;
+  const index = Math.ceil(sortedValues.length * p) - 1;
+  return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, index))];
+}
+
+async function checkAndSendAlerts(paris, livePerRideId) {
+  if (!botInstance) return;
+  if (paris.hour < ALERT_HOUR_START || paris.hour >= ALERT_HOUR_END) return;
+
+  const subscribers = subscribersAll.all();
+  if (!subscribers.length) return;
+
+  const nowIso = new Date().toISOString();
+  const debounceCutoff = new Date(Date.now() - ALERT_DEBOUNCE_MS).toISOString();
+  const burstCutoff = new Date(Date.now() - ALERT_BURST_WINDOW_MS).toISOString();
+
+  const candidates = [];
+  for (const [rideId, live] of livePerRideId) {
+    if (!live.is_open) continue;
+    if (live.wait_time > ALERT_CURRENT_MAX_WAIT) continue;
+    const meta = rideByIdIndex.get(rideId);
+    if (!meta || !ALERT_TIER_SET.has(meta.t)) continue;
+
+    const waits = baselineForRide.all(paris.dayType, rideId, paris.hour).map(r => r.wait_time);
+    if (waits.length < ALERT_MIN_BASELINE_SAMPLES) continue;
+    const median = percentileFromSorted(waits, 0.5);
+    if (median === null || median < ALERT_BASELINE_MIN_WAIT) continue;
+
+    candidates.push({ rideId, meta, current: live.wait_time, median });
+  }
+
+  if (!candidates.length) return;
+
+  for (const sub of subscribers) {
+    const chatId = sub.chat_id;
+    let sentInBurstWindow = recentAlertsCount.get(chatId, burstCutoff).c;
+    if (sentInBurstWindow >= ALERT_BURST_LIMIT) continue;
+
+    for (const c of candidates) {
+      if (sentInBurstWindow >= ALERT_BURST_LIMIT) break;
+      if (recentAlertByRide.get(chatId, c.rideId, debounceCutoff)) continue;
+      const sent = await sendAlert(chatId, c);
+      if (!sent) continue;
+      insertAlert.run(chatId, c.rideId, nowIso);
+      sentInBurstWindow += 1;
+    }
+  }
+}
+
+async function sendAlert(chatId, c) {
+  const text =
+    `🎯 *${escapeMarkdown(c.meta.name)}* — ${c.current} мин\n` +
+    `Обычно в это время ~${c.median} мин`;
+
+  const keyboard = appUrl
+    ? { inline_keyboard: [[{ text: "🗺️ Открыть планировщик", web_app: { url: appUrl } }]] }
+    : undefined;
+
+  try {
+    await botInstance.sendMessage(chatId, text, {
+      parse_mode: "Markdown",
+      reply_markup: keyboard
+    });
+    return true;
+  } catch (err) {
+    console.error(`Alert send failed for ${chatId}:`, err.message);
+    if (err.response && err.response.statusCode === 403) {
+      unsubscribeStmt.run(chatId);
+      console.log(`Auto-unsubscribed ${chatId} (blocked by user)`);
+    }
+    return false;
+  }
+}
+
+function escapeMarkdown(text) {
+  return String(text).replace(/([_*`\[\]()])/g, "\\$1");
+}
 
 // ── Queue-Times API proxy (solves CORS) ─────────────────────────────────────
 app.use(express.json());
@@ -127,6 +268,49 @@ app.delete("/api/coords/:name", (req, res) => {
   delete coords[req.params.name];
   writeCoords(coords);
   res.json({ ok: true, coords });
+});
+
+function verifyInitData(initData) {
+  if (!initData || !process.env.TELEGRAM_BOT_TOKEN) return null;
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  params.delete("hash");
+  const pairs = [];
+  for (const [k, v] of params) pairs.push(`${k}=${v}`);
+  pairs.sort();
+  const dataCheckString = pairs.join("\n");
+  const crypto = require("crypto");
+  const secret = crypto.createHmac("sha256", "WebAppData").update(process.env.TELEGRAM_BOT_TOKEN).digest();
+  const computed = crypto.createHmac("sha256", secret).update(dataCheckString).digest("hex");
+  if (computed !== hash) return null;
+  try {
+    const user = JSON.parse(params.get("user"));
+    return { chatId: user.id };
+  } catch {
+    return null;
+  }
+}
+
+app.post("/api/subscribe", (req, res) => {
+  const auth = verifyInitData(req.body && req.body.initData);
+  if (!auth) return res.status(401).json({ error: "Invalid initData" });
+  subscribeStmt.run(auth.chatId, new Date().toISOString());
+  res.json({ ok: true, subscribed: true });
+});
+
+app.post("/api/unsubscribe", (req, res) => {
+  const auth = verifyInitData(req.body && req.body.initData);
+  if (!auth) return res.status(401).json({ error: "Invalid initData" });
+  unsubscribeStmt.run(auth.chatId);
+  res.json({ ok: true, subscribed: false });
+});
+
+app.post("/api/subscription-status", (req, res) => {
+  const auth = verifyInitData(req.body && req.body.initData);
+  if (!auth) return res.status(401).json({ error: "Invalid initData" });
+  const subscribed = !!isSubscribedStmt.get(auth.chatId);
+  res.json({ ok: true, subscribed });
 });
 
 async function fetchParkQueue(parkId) {
@@ -279,13 +463,19 @@ async function collectWaitSamples() {
   const sampledAt = new Date();
   const paris = getParisDateParts(sampledAt);
 
+  if (paris.hour < COLLECT_HOUR_START || paris.hour >= COLLECT_HOUR_END) {
+    return;
+  }
+
   try {
     const parks = await Promise.all(PARK_IDS.map(async parkId => ({ parkId, data: await fetchParkQueue(parkId) })));
     const samples = [];
+    const livePerRideId = new Map();
 
     for (const { parkId, data } of parks) {
       for (const land of data.lands || []) {
         for (const ride of land.rides || []) {
+          const waitTime = Number.isFinite(ride.wait_time) ? ride.wait_time : 0;
           samples.push({
             ride_id: ride.id,
             park_id: parkId,
@@ -298,8 +488,9 @@ async function collectWaitSamples() {
             weekday: paris.weekday,
             day_type: paris.dayType,
             is_open: ride.is_open ? 1 : 0,
-            wait_time: Number.isFinite(ride.wait_time) ? ride.wait_time : 0
+            wait_time: waitTime
           });
+          livePerRideId.set(ride.id, { is_open: !!ride.is_open, wait_time: waitTime });
         }
       }
     }
@@ -311,6 +502,8 @@ async function collectWaitSamples() {
       `Collected ${samples.length} wait samples (${paris.dayType} ${paris.localTime}); ` +
       `total=${stats.total_samples}, today=${samplesToday}, rides=${stats.ride_count}, db=${DB_PATH}`
     );
+
+    await checkAndSendAlerts(paris, livePerRideId);
   } catch (err) {
     console.error("Failed to collect wait samples:", err.message);
   }
@@ -336,18 +529,23 @@ function startBot() {
     return;
   }
 
-  const appUrl = process.env.APP_URL; // e.g. https://disney-planner.up.railway.app
+  appUrl = process.env.APP_URL; // e.g. https://disney-planner.up.railway.app
   if (!appUrl) {
     console.log("No APP_URL set — bot can't link to Mini App");
     return;
   }
 
   const bot = new TelegramBot(token, { polling: true });
+  botInstance = bot;
 
   bot.onText(/\/start/, (msg) => {
     bot.sendMessage(msg.chat.id,
       "🏰 *Disneyland Paris Planner*\n\n" +
-      "Рейтинг аттракционов, live очереди, тепловые карты загруженности и готовые планы дня.\n\n" +
+      "Рейтинг аттракционов, live очереди, тепловые карты загруженности и карта парка.\n\n" +
+      "Команды:\n" +
+      "/subscribe — уведомления о коротких очередях\n" +
+      "/unsubscribe — отключить уведомления\n" +
+      "/status — статус подписки\n\n" +
       "Нажми кнопку ниже, чтобы открыть планировщик 👇",
       {
         parse_mode: "Markdown",
@@ -357,6 +555,32 @@ function startBot() {
           ]]
         }
       }
+    );
+  });
+
+  bot.onText(/\/subscribe/, (msg) => {
+    subscribeStmt.run(msg.chat.id, new Date().toISOString());
+    bot.sendMessage(msg.chat.id,
+      "🔔 *Уведомления включены*\n\n" +
+      "Будем писать, когда у популярного аттракциона очередь резко упадёт (в часы работы парка, 9:00–22:00 по Парижу).\n\n" +
+      "Отключить — /unsubscribe",
+      { parse_mode: "Markdown" }
+    );
+  });
+
+  bot.onText(/\/unsubscribe/, (msg) => {
+    unsubscribeStmt.run(msg.chat.id);
+    bot.sendMessage(msg.chat.id,
+      "🔕 Уведомления отключены. Включить снова — /subscribe"
+    );
+  });
+
+  bot.onText(/\/status/, (msg) => {
+    const subscribed = !!isSubscribedStmt.get(msg.chat.id);
+    bot.sendMessage(msg.chat.id,
+      subscribed
+        ? "🔔 Уведомления включены. Отключить — /unsubscribe"
+        : "🔕 Уведомления отключены. Включить — /subscribe"
     );
   });
 
@@ -416,6 +640,9 @@ function startBot() {
       "🏰 *Disney Paris Planner — Команды*\n\n" +
       "/start — открыть планировщик\n" +
       "/wait — текущие очереди (текст)\n" +
+      "/subscribe — уведомления о коротких очередях\n" +
+      "/unsubscribe — отключить уведомления\n" +
+      "/status — статус подписки\n" +
       "/help — эта справка",
       { parse_mode: "Markdown" }
     );
