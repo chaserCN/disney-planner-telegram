@@ -69,10 +69,10 @@
   .rc .bh { font-size:11px; color:var(--mu); margin-top:1px; }
   .rc .rt { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
   .tier { font-size:10px; font-weight:800; padding:2px 6px; border-radius:3px; white-space:nowrap; letter-spacing:0; }
-  .t-S { background:#facc15; color:#1a1a00; }
-  .t-A { background:#fde68a; color:#3b2f00; }
-  .t-B { background:#cbd5e1; color:#1e293b; }
-  .t-C { background:#64748b; color:#f8fafc; }
+  .t-S { background:#8b5cf6; color:#fff; }
+  .t-A { background:#a78bfa; color:#fff; }
+  .t-B { background:#c4b5fd; color:#2e1065; }
+  .t-C { background:#94a3b8; color:#1e293b; }
   .lv { font-size:12px; font-weight:700; padding:3px 8px; border-radius:99px; }
   .lv-off { background:#334155; color:#94a3b8; font-size:11px; }
   .bh .cmp { font-weight:700; }
@@ -192,7 +192,7 @@ const R = {
 };
 
 const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"9:30–23:00"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"9:30–21:00"} };
-const T = {S:{bg:"#facc15",tx:"#1a1a00",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#fde68a",tx:"#3b2f00",lb:"4 звезды",stars:"★★★★"},B:{bg:"#cbd5e1",tx:"#1e293b",lb:"3 звезды",stars:"★★★"},C:{bg:"#64748b",tx:"#f8fafc",lb:"2 звезды",stars:"★★"}};
+const T = {S:{bg:"#8b5cf6",tx:"#fff",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#c4b5fd",tx:"#2e1065",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
 
 const STR = [
   {id:"s1",tt:"Adventure World → Главный",sub:"Frozen утром, замок и фейерверк вечером. 1 переход",em:"🎬→🏰",
@@ -348,7 +348,7 @@ function draw(){
     st.bl.forEach(b=>{
       const tr=b.pk==="x",cls=tr?"bl tr":b.pk==="d"?"bl d":"bl s";
       h+=`<div class="${cls}"><div class="bl-h"><div class="lf"><span class="ic" style="font-size:${tr?14:18}px">${b.ic}</span><div><div class="bl-lb">${b.lb}</div><div class="bl-tm">${b.tm}</div></div></div>${!tr?(b.pk==="d"?'<span class="pbdg d">🏰 Главный</span>':'<span class="pbdg s">🎬 Adventure</span>'):''}</div>`;
-      if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg}30;color:${tc.bg};border:1px solid ${tc.bg}40">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
+      if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg};color:${tc.tx}">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
       h+=`<div class="bl-nt">${b.nt}</div></div>`;
     });
     h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Tower, Hyperspace, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — €7–21. Приоритет: Crush's и Peter Pan<br><br><b>Парад ~17:30</b> — очереди -30–50%<br><br><b>Disneyland Paris App</b> — live очереди в парке</p></div>`;
