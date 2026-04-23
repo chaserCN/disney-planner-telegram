@@ -149,6 +149,8 @@
   .mv-pt.t-C { background:#94a3b8; }
   .mv-pt.dim { opacity:.2; }
   .mv-pt.sel { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); z-index:2; }
+  .mv-wt { position:absolute; left:50%; top:100%; transform:translate(-30%,-40%); min-width:20px; height:16px; padding:0 4px; border-radius:8px; border:1.5px solid #000; font-size:10px; font-weight:800; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,.5); white-space:nowrap; }
+  .mv-wt.off { background:#334155; color:#94a3b8; }
   .mv-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:3; }
   .mv-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .mv-legend { position:absolute; left:8px; top:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; display:flex; gap:6px; flex-wrap:wrap; z-index:3; }
@@ -635,7 +637,19 @@ function draw(){
       const c=S.coords[n];if(!c)return;
       const vis=visible(n);
       const sel=S.msel===n;
-      h+=`<div class="mv-pt t-${m.t} ${vis?'':'dim'} ${sel?'sel':''}" style="left:${c.mx}%;top:${c.my}%" data-ride="${esc(n).replace(/"/g,'&quot;')}">${m.i}</div>`;
+      const lv=liveRide(n,m);
+      const slv=singleRide(m);
+      let wt='';
+      if(lv){
+        if(!lv.is_open)wt=`<span class="mv-wt off">✕</span>`;
+        else{
+          const w=lv.wait_time;
+          const color=wc(w), tx=w>40?'#fff':'#0f172a';
+          const sPart=slv&&slv.is_open?`/${slv.wait_time}`:'';
+          wt=`<span class="mv-wt" style="background:${color};color:${tx}">${w===0?'0':w}${sPart}</span>`;
+        }
+      }
+      h+=`<div class="mv-pt t-${m.t} ${vis?'':'dim'} ${sel?'sel':''}" style="left:${c.mx}%;top:${c.my}%" data-ride="${attr(n)}">${m.i}${wt}</div>`;
     });
     h+=`</div>`;
 
