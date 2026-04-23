@@ -8,7 +8,9 @@ const { R: RIDES } = require("./public/rides-data");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PARK_IDS = [4, 28];
-const COLLECT_INTERVAL_MS = 10 * 60 * 1000;
+const BASE_COLLECT_INTERVAL_MS = 5 * 60 * 1000;
+const SLOW_COLLECT_EVERY_MINUTES = 10;
+const FAST_COLLECT_DATE = process.env.FAST_COLLECT_DATE || null;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "disney.sqlite");
 
 const COLLECT_START_MINUTES = 9 * 60 + 30;
@@ -384,7 +386,7 @@ app.get("/api/history/status", (req, res) => {
   res.json({
     ok: true,
     db_path: DB_PATH,
-    collector_interval_minutes: COLLECT_INTERVAL_MS / 60000,
+    collector_interval_minutes: currentCollectIntervalMinutes(),
     paris_now: `${paris.localDate} ${paris.localTime}`,
     today_type: paris.dayType,
     total_samples: stats.total_samples,
@@ -474,11 +476,32 @@ function addDays(localDate, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function isFastCollectDay(paris) {
+  return FAST_COLLECT_DATE && paris.localDate === FAST_COLLECT_DATE;
+}
+
+function currentCollectIntervalMinutes(paris) {
+  return isFastCollectDay(paris || getParisDateParts(new Date())) ? 5 : SLOW_COLLECT_EVERY_MINUTES;
+}
+
+const lastSampleAtStmt = db.prepare(
+  "SELECT MAX(sampled_at) AS last FROM wait_samples"
+);
+
 async function collectWaitSamples() {
   const sampledAt = new Date();
   const paris = getParisDateParts(sampledAt);
 
   if (!isWithinMinutesWindow(paris, COLLECT_START_MINUTES, COLLECT_END_MINUTES)) {
+    return;
+  }
+
+  const targetIntervalMs = currentCollectIntervalMinutes(paris) * 60 * 1000;
+  const lastRow = lastSampleAtStmt.get();
+  const lastMs = lastRow && lastRow.last ? new Date(lastRow.last).getTime() : 0;
+  const sinceLast = sampledAt.getTime() - lastMs;
+  const tolerance = 30 * 1000;
+  if (sinceLast + tolerance < targetIntervalMs) {
     return;
   }
 
@@ -526,7 +549,9 @@ async function collectWaitSamples() {
 
 function startCollector() {
   collectWaitSamples();
-  setInterval(collectWaitSamples, COLLECT_INTERVAL_MS);
+  setInterval(collectWaitSamples, BASE_COLLECT_INTERVAL_MS);
+  const modeLabel = FAST_COLLECT_DATE ? `fast on ${FAST_COLLECT_DATE}, ${SLOW_COLLECT_EVERY_MINUTES}-min otherwise` : `${SLOW_COLLECT_EVERY_MINUTES}-min`;
+  console.log(`Collector started (${modeLabel}, base tick ${BASE_COLLECT_INTERVAL_MS / 60000}m)`);
 }
 
 // ── Start server ────────────────────────────────────────────────────────────
