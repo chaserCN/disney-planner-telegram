@@ -266,12 +266,7 @@ const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:m.ap*wm(h));
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
 const paidCompact=p=>p&&p.available&&p.price?`Быстрый проход ${esc(p.price.formatted)}`:p&&p.available?"Быстрый проход":"";
-const paidFull=p=>{
-  const label=paidCompact(p);
-  if(!label)return "";
-  const start=timeHHMM(p.returnStart),end=timeHHMM(p.returnEnd);
-  return start&&end?`${label} · ${start}-${end}`:label;
-};
+const paidFull=p=>paidCompact(p);
 const baseText=(m,lv)=>{
   const b=baseRide(m);
   const p25=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.p25:Math.max(0,Math.round(fallbackWait(m)*.75));
