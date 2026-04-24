@@ -64,16 +64,16 @@
   .psh .hr { font-size:11px; color:var(--mu); }
 
   /* Ride card — touch friendly */
-  .rc { display:flex; align-items:center; gap:9px; padding:11px 10px; background:var(--cd); border-radius:10px; margin-bottom:6px; min-height:64px; }
+  .rc { display:flex; align-items:flex-start; gap:9px; padding:11px 10px; background:var(--cd); border-radius:10px; margin-bottom:6px; }
   .rc.dlp { border-left:3px solid var(--dlp); }
   .rc.st { border-left:3px solid var(--st); }
-  .rc .ic { font-size:22px; line-height:1; flex-shrink:0; width:30px; text-align:center; }
+  .rc .ic { font-size:22px; line-height:1; flex-shrink:0; width:30px; text-align:center; margin-top:1px; }
   .rc .bd { flex:1; min-width:0; }
-  .rc .rn { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rc .hd { display:flex; align-items:flex-start; gap:6px; }
+  .rc .hd .rn { flex:1; min-width:0; font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rc .rm { font-size:11px; color:var(--mu); margin-top:2px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
-  .rc .tags { margin-top:2px; display:flex; gap:4px; flex-wrap:wrap; }
-  .rc .bh { font-size:11px; color:var(--mu); margin-top:1px; }
-  .rc .rt { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+  .rc .tags { margin-top:6px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+  .rc .bh { font-size:11px; color:var(--mu); margin-top:6px; }
   .tier { font-size:10px; font-weight:800; padding:2px 6px; border-radius:3px; white-space:nowrap; letter-spacing:0; }
   .t-S { background:#8b5cf6; color:#fff; }
   .t-A { background:#a78bfa; color:#fff; }
@@ -269,9 +269,9 @@ const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
 const paidCompact=p=>{
   if(!p)return"";
-  if(p.available&&p.price)return`Быстрый проход ${esc(p.price.formatted)}`;
-  if(p.available)return"Быстрый проход";
-  if(p.price)return`Быстрый проход ${esc(p.price.formatted)} · продано`;
+  if(p.available&&p.price)return`Fast-pass: ${esc(p.price.formatted)}`;
+  if(p.available)return"Fast-pass:";
+  if(p.price)return`Fast-pass: ${esc(p.price.formatted)} · продано`;
   return"";
 };
 const paidFull=p=>paidCompact(p);
@@ -790,8 +790,9 @@ function draw(){
         if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       }
-      const waitBadges=S.rsort==="waitSingle"?`${singleBadge}${badge}`:`${badge}${singleBadge}`;
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p${paid&&!paid.available?' so':''}">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${waitBadges}</div></div>`;
+      const fastInline=hasPremierAccess(n,m)?`<span>·</span><span class="tg-p${paid&&!paid.available?' so':''}">${paidCompact(paid)}</span>`:'';
+      const tagsOrder=S.rsort==="waitSingle"?`${singleBadge}${badge}`:`${badge}${singleBadge}`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="hd"><div class="rn">${esc(n)}</div><span class="tier t-${m.t}">${T[m.t].stars}</span></div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span>${fastInline}</div><div class="tags">${tagsOrder}</div><div class="bh">${baseText(m,lv)}</div></div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
@@ -841,7 +842,7 @@ function draw(){
       if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg};color:${tc.tx}">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
       h+=`<div class="bl-nt">${b.nt}</div></div>`;
     });
-    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Frozen, Indiana, Avengers. -30–60 мин<br><br><b>Быстрый проход</b> — смотрите live-цену в карточках. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
+    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Frozen, Indiana, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — смотрите live-цену в карточках. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
   }
 
   // ═══ MAP ═══
