@@ -345,7 +345,11 @@ const WX_LABEL=c=>{
 const MV = {scale:1,tx:0,ty:0,ready:false};
 let geoMsgTimer = null;
 let userPosTimer = null;
+let liveRequest = null;
+let lastLiveFetchAt = 0;
+let autoRefreshTimer = null;
 const USER_POS_TTL_MS = 5 * 60 * 1000;
+const LIVE_AUTO_REFRESH_MS = 5 * 60 * 1000;
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
 
 function setGeoMsg(message){
@@ -364,24 +368,34 @@ function setGeoMsg(message){
 
 // ── Fetch ───────────────────────────────────────────────────────────────────
 async function fetchLive(){
+  if(liveRequest)return liveRequest;
   set({ld:true});
-  try{
-    const r=await fetch("/api/live");
-    if(!r.ok)throw new Error("live");
-    const data=await r.json();
-    set({
-      live:data.rides||{},
-      liveSource:data.source||"Live",
-      liveFallback:!!data.fallback,
-      upd:new Date(data.updated_at||Date.now()),
-      err:null,
-      ld:false
-    });
-    fetch("/api/baseline").then(r=>r.ok?r.json():null).then(base=>{
-      if(base)set({base,baseType:base.day_type});
-    }).catch(()=>{});
-    fetchWeather();
-  }catch{set({err:"Live недоступны",ld:false})}
+  liveRequest=(async()=>{
+    try{
+      const r=await fetch("/api/live");
+      if(!r.ok)throw new Error("live");
+      const data=await r.json();
+      lastLiveFetchAt=Date.now();
+      set({
+        live:data.rides||{},
+        liveSource:data.source||"Live",
+        liveFallback:!!data.fallback,
+        upd:new Date(data.updated_at||Date.now()),
+        err:null,
+        ld:false
+      });
+      fetch("/api/baseline").then(r=>r.ok?r.json():null).then(base=>{
+        if(base)set({base,baseType:base.day_type});
+      }).catch(()=>{});
+      fetchWeather();
+    }catch{
+      set({err:"Live недоступны",ld:false});
+    }finally{
+      liveRequest=null;
+      scheduleAutoRefresh();
+    }
+  })();
+  return liveRequest;
 }
 
 async function fetchWeather(){
@@ -391,6 +405,41 @@ async function fetchWeather(){
     const w=await r.json();
     if(w&&(w.code!=null||w.temp!=null))set({weather:w});
   }catch{}
+}
+
+function refreshLiveIfStale(force=false){
+  const staleFor=Date.now()-lastLiveFetchAt;
+  if(force||!lastLiveFetchAt||staleFor>=LIVE_AUTO_REFRESH_MS){
+    fetchLive();
+    return;
+  }
+  scheduleAutoRefresh();
+}
+
+function scheduleAutoRefresh(){
+  if(autoRefreshTimer){
+    clearTimeout(autoRefreshTimer);
+    autoRefreshTimer=null;
+  }
+  if(document.hidden)return;
+  const delay=Math.max(0,LIVE_AUTO_REFRESH_MS-(Date.now()-lastLiveFetchAt));
+  autoRefreshTimer=setTimeout(()=>refreshLiveIfStale(),delay||LIVE_AUTO_REFRESH_MS);
+}
+
+function initAutoRefresh(){
+  const onResume=()=>refreshLiveIfStale();
+  document.addEventListener("visibilitychange",()=>{
+    if(document.hidden){
+      if(autoRefreshTimer){
+        clearTimeout(autoRefreshTimer);
+        autoRefreshTimer=null;
+      }
+      return;
+    }
+    onResume();
+  });
+  window.addEventListener("focus",onResume);
+  window.addEventListener("pageshow",onResume);
 }
 
 // ── Pull to refresh ────────────────────────────────────────────────────────
@@ -986,6 +1035,7 @@ draw();
 fetchLive();
 loadCoords();
 loadSubscription();
+initAutoRefresh();
 initPullToRefresh();
 </script>
 </body>
