@@ -144,20 +144,60 @@ function runMigrations() {
       return;
     }
 
-    const upsertRideSample = db.prepare(`
+    const legacyCount = db.prepare("SELECT COUNT(*) AS c FROM wait_samples").get().c;
+    const mappingRows = [];
+    for (const [rideId, meta] of rideByIdIndex.entries()) {
+      mappingRows.push(`(${rideId}, ${rideId}, 'standby', ${parkIdForRide(meta)}, '${String(meta.name).replace(/'/g, "''")}')`);
+    }
+    for (const [legacySingleId, canonicalRideId] of Object.entries(QUEUE_TIMES_SINGLE_RIDER_MAP)) {
+      const meta = rideByIdIndex.get(Number(canonicalRideId));
+      mappingRows.push(`(${Number(legacySingleId)}, ${Number(canonicalRideId)}, 'single', ${parkIdForRide(meta)}, '${String(meta.name).replace(/'/g, "''")}')`);
+    }
+    const migrationSql = `
+      WITH mapping(legacy_ride_id, canonical_ride_id, queue_kind, park_id, ride_name) AS (
+        VALUES ${mappingRows.join(",\n        ")}
+      )
       INSERT INTO ride_live_samples (
         ride_id, park_id, ride_name, sampled_at, local_date, local_time,
         time_bucket, hour, weekday, day_type,
         standby_open, standby_wait, single_open, single_wait,
         premier_price_amount, premier_price_currency, premier_return_start, premier_return_end,
         source, fallback
-      ) VALUES (
-        @ride_id, @park_id, @ride_name, @sampled_at, @local_date, @local_time,
-        @time_bucket, @hour, @weekday, @day_type,
-        @standby_open, @standby_wait, @single_open, @single_wait,
-        @premier_price_amount, @premier_price_currency, @premier_return_start, @premier_return_end,
-        @source, @fallback
       )
+      SELECT
+        mapping.canonical_ride_id,
+        mapping.park_id,
+        mapping.ride_name,
+        ws.sampled_at,
+        ws.local_date,
+        ws.local_time,
+        ws.time_bucket,
+        ws.hour,
+        ws.weekday,
+        ws.day_type,
+        MAX(CASE WHEN mapping.queue_kind = 'standby' THEN ws.is_open END) AS standby_open,
+        MAX(CASE WHEN mapping.queue_kind = 'standby' THEN ws.wait_time END) AS standby_wait,
+        MAX(CASE WHEN mapping.queue_kind = 'single' THEN ws.is_open END) AS single_open,
+        MAX(CASE WHEN mapping.queue_kind = 'single' THEN ws.wait_time END) AS single_wait,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        'Queue-Times.com',
+        1
+      FROM wait_samples ws
+      JOIN mapping ON mapping.legacy_ride_id = ws.ride_id
+      GROUP BY
+        mapping.canonical_ride_id,
+        mapping.park_id,
+        mapping.ride_name,
+        ws.sampled_at,
+        ws.local_date,
+        ws.local_time,
+        ws.time_bucket,
+        ws.hour,
+        ws.weekday,
+        ws.day_type
       ON CONFLICT(ride_id, sampled_at) DO UPDATE SET
         park_id = excluded.park_id,
         ride_name = excluded.ride_name,
@@ -173,44 +213,8 @@ function runMigrations() {
         single_wait = COALESCE(excluded.single_wait, ride_live_samples.single_wait),
         source = excluded.source,
         fallback = excluded.fallback
-    `);
-
-    const legacyCount = db.prepare("SELECT COUNT(*) AS c FROM wait_samples").get().c;
-    const legacyRows = db.prepare("SELECT * FROM wait_samples ORDER BY sampled_at, id");
-    const migrateLegacyRows = db.transaction(() => {
-      for (const row of legacyRows.iterate()) {
-        const standbyRideId = rideByIdIndex.has(row.ride_id) ? row.ride_id : null;
-        const singleRideId = QUEUE_TIMES_SINGLE_RIDER_MAP[row.ride_id] || null;
-        const canonicalRideId = standbyRideId || singleRideId;
-        if (!canonicalRideId) continue;
-
-        const meta = rideByIdIndex.get(canonicalRideId);
-        upsertRideSample.run({
-          ride_id: canonicalRideId,
-          park_id: parkIdForRide(meta),
-          ride_name: meta.name,
-          sampled_at: row.sampled_at,
-          local_date: row.local_date,
-          local_time: row.local_time,
-          time_bucket: row.time_bucket,
-          hour: row.hour,
-          weekday: row.weekday,
-          day_type: row.day_type,
-          standby_open: standbyRideId ? row.is_open : null,
-          standby_wait: standbyRideId ? row.wait_time : null,
-          single_open: singleRideId ? row.is_open : null,
-          single_wait: singleRideId ? row.wait_time : null,
-          premier_price_amount: null,
-          premier_price_currency: null,
-          premier_return_start: null,
-          premier_return_end: null,
-          source: "Queue-Times.com",
-          fallback: 1
-        });
-      }
-    });
-
-    migrateLegacyRows();
+    `;
+    db.exec(migrationSql);
     const after = db.prepare("SELECT COUNT(*) AS c FROM ride_live_samples").get().c;
     console.log(
       `Migration 20260424_migrate_wait_samples_to_ride_live_samples: migrated ${legacyCount} legacy rows into ${after} ride_live_samples rows`
