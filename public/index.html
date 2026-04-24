@@ -53,6 +53,9 @@
   .pl.on-s { border-color:var(--st); background:rgba(96,165,250,.12); color:var(--st); }
   .wx { margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:0 4px; font-size:15px; line-height:1; color:var(--mu); flex-shrink:0; user-select:none; align-self:center; }
   .wx .t { font-size:13px; font-weight:500; }
+  @media (max-width: 390px) {
+    .wx { width:100%; margin-left:0; justify-content:flex-end; padding-right:2px; }
+  }
 
   /* Park section */
   .ps { margin-bottom:14px; }
@@ -803,10 +806,9 @@ function draw(){
     ?`<button class="sub-btn on" onclick="toggleSubscription()" title="Уведомления включены">🔔</button>`
     :`<button class="sub-btn" onclick="toggleSubscription()" title="Включить уведомления">🔕</button>`);
 
-  const liveLabel=S.liveSource?(S.liveFallback?`${S.liveSource} fallback`:S.liveSource):"Live";
   let h=`<div class="hdr">
     <h1>Disneyland Paris</h1>
-    <div class="hdr-r">${subBtn}<div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`${liveLabel} ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
+    <div class="hdr-r">${subBtn}<div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
   </div>`;
 
   h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
