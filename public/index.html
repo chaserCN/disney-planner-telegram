@@ -33,11 +33,11 @@
   .app { max-width: 520px; margin:0 auto; padding: 10px 14px 20px; }
 
   /* Header */
-  .hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; padding-top:2px; }
-  .hdr-l { display:flex; align-items:center; gap:8px; min-width:0; }
+  .hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; padding-top:2px; }
+  .hdr-l { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .hdr-top { display:flex; align-items:center; gap:8px; min-width:0; }
   .hdr h1 { font-size:20px; font-weight:800; letter-spacing:0; min-width:0; }
-  .hdr-r { display:flex; align-items:center; gap:10px; }
-  .hdr-meta { display:flex; align-items:center; gap:8px; min-width:0; }
+  .hdr-r { display:flex; align-items:center; gap:10px; flex-shrink:0; }
   .live-mini { font-size:12px; color:var(--mu); white-space:nowrap; font-weight:700; }
   .sub-btn { width:34px; height:34px; border-radius:50%; border:1px solid var(--bd); background:var(--cd); color:var(--tx); font-size:16px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; }
   .sub-btn.on { background:color-mix(in srgb, var(--ac) 20%, var(--cd)); border-color:var(--ac); }
@@ -809,8 +809,8 @@ function draw(){
   const wxHtml=wx?`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx.code)}${Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`:"";
 
   let h=`<div class="hdr">
-    <div class="hdr-l"><h1>Disneyland Paris</h1>${wxHtml}</div>
-    <div class="hdr-r">${subBtn}<div class="hdr-meta"><div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div></div>
+    <div class="hdr-l"><div class="hdr-top"><h1>Disneyland Paris</h1>${wxHtml}</div><div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
+    <div class="hdr-r">${subBtn}</div>
   </div>`;
 
   h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
