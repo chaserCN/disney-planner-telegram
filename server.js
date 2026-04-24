@@ -293,6 +293,14 @@ const dayTypeStats = db.prepare(`
   GROUP BY day_type
   ORDER BY day_type
 `);
+const weatherBreakdownStmt = db.prepare(`
+  SELECT
+    SUM(CASE WHEN weather_code IS NULL OR weather_code = 0 THEN 1 ELSE 0 END) AS clear,
+    SUM(CASE WHEN weather_code BETWEEN 1 AND 48 THEN 1 ELSE 0 END) AS cloudy,
+    SUM(CASE WHEN weather_code BETWEEN 51 AND 62 THEN 1 ELSE 0 END) AS light_rain,
+    SUM(CASE WHEN weather_code >= 63 THEN 1 ELSE 0 END) AS heavy_rain
+  FROM ride_live_samples
+`);
 
 const subscribersAll = db.prepare("SELECT chat_id FROM subscribers");
 const subscribeStmt = db.prepare(
@@ -760,6 +768,27 @@ app.get("/api/history/status", (req, res) => {
     byDayType[row.day_type] = row.samples;
   }
 
+  const wb = weatherBreakdownStmt.get() || {};
+  const wbCounts = {
+    clear: wb.clear || 0,
+    cloudy: wb.cloudy || 0,
+    light_rain: wb.light_rain || 0,
+    heavy_rain: wb.heavy_rain || 0
+  };
+  const wbTotal = wbCounts.clear + wbCounts.cloudy + wbCounts.light_rain + wbCounts.heavy_rain;
+  const pct = n => wbTotal ? Math.round((n / wbTotal) * 1000) / 10 : 0;
+  const weather = {
+    counts: wbCounts,
+    pct: {
+      clear: pct(wbCounts.clear),
+      cloudy: pct(wbCounts.cloudy),
+      light_rain: pct(wbCounts.light_rain),
+      heavy_rain: pct(wbCounts.heavy_rain)
+    },
+    baseline_eligible: wbCounts.clear + wbCounts.cloudy + wbCounts.light_rain,
+    excluded_from_baseline: wbCounts.heavy_rain
+  };
+
   res.set("Cache-Control", "no-store");
   res.json({
     ok: true,
@@ -771,7 +800,8 @@ app.get("/api/history/status", (req, res) => {
     ride_count: stats.ride_count,
     first_sample_at: stats.first_sample_at,
     last_sample_at: stats.last_sample_at,
-    by_day_type: byDayType
+    by_day_type: byDayType,
+    weather
   });
 });
 
