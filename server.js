@@ -8,6 +8,8 @@ const { R: RIDES } = require("./public/rides-data");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PARK_IDS = [4, 28];
+const THEMEPARKS_DESTINATION_ID = "e8d0207f-da8a-4048-bec8-117aa946b2c2";
+const THEMEPARKS_CACHE_MS = 60 * 1000;
 const BASE_COLLECT_INTERVAL_MS = 5 * 60 * 1000;
 const SLOW_COLLECT_EVERY_MINUTES = 10;
 const FAST_COLLECT_DATE = process.env.FAST_COLLECT_DATE || null;
@@ -26,12 +28,45 @@ const ALERT_DEBOUNCE_MS = 60 * 60 * 1000;
 const ALERT_BURST_WINDOW_MS = 10 * 60 * 1000;
 const ALERT_BURST_LIMIT = 3;
 const ALERT_TIER_WEIGHT = { S: 3, A: 2, B: 1 };
+const QUEUE_TIMES_SINGLE_RIDER_MAP = Object.fromEntries(
+  Object.values(RIDES)
+    .filter(meta => meta.srid)
+    .map(meta => [meta.srid, meta.id])
+);
+const THEMEPARKS_ALIASES = {
+  "Big Thunder Mountain": ["Big Thunder Mountain"],
+  "Hyperspace Mountain": ["Star Wars Hyperspace Mountain"],
+  "Frozen Ever After": ["Frozen Ever After"],
+  "Phantom Manor": ["Phantom Manor"],
+  "Pirates of the Caribbean": ["Pirates of the Caribbean"],
+  "Indiana Jones": ["Indiana Jones"],
+  "Peter Pan's Flight": ["Peter Pan's Flight"],
+  "Buzz Lightyear Laser Blast": ["Buzz Lightyear Laser Blast"],
+  "Star Tours": ["Star Tours"],
+  "It's a Small World": ["it's a small world"],
+  "Autopia": ["Autopia"],
+  "Orbitron": ["Orbitron"],
+  "Crush's Coaster": ["Crush's Coaster"],
+  "Tower of Terror": ["The Twilight Zone Tower of Terror"],
+  "Ratatouille": ["Ratatouille"],
+  "Avengers Assemble": ["Avengers Assemble: Flight Force"],
+  "RC Racer": ["RC Racer"],
+  "Spider-Man W.E.B.": ["Spider-Man W.E.B. Adventure"],
+  "Toy Soldiers": ["Toy Soldiers Parachute Drop"],
+  "Cars Road Trip": ["Cars ROAD TRIP"]
+};
+let themeParksLiveCache = null;
+const rideByIdIndex = new Map();
+for (const [name, meta] of Object.entries(RIDES)) {
+  rideByIdIndex.set(meta.id, { name, ...meta });
+}
+const ALERT_TIER_SET = new Set(["S", "A", "B"]);
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 db.exec(`
-  CREATE TABLE IF NOT EXISTS wait_samples (
+  CREATE TABLE IF NOT EXISTS ride_live_samples (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ride_id INTEGER NOT NULL,
     park_id INTEGER NOT NULL,
@@ -43,15 +78,26 @@ db.exec(`
     hour INTEGER NOT NULL,
     weekday INTEGER NOT NULL,
     day_type TEXT NOT NULL,
-    is_open INTEGER NOT NULL,
-    wait_time INTEGER NOT NULL
+    standby_open INTEGER,
+    standby_wait INTEGER,
+    single_open INTEGER,
+    single_wait INTEGER,
+    premier_price_amount INTEGER,
+    premier_price_currency TEXT,
+    premier_return_start TEXT,
+    premier_return_end TEXT,
+    source TEXT NOT NULL,
+    fallback INTEGER NOT NULL DEFAULT 0
   );
 
-  CREATE INDEX IF NOT EXISTS idx_wait_samples_baseline
-    ON wait_samples (day_type, ride_id, hour, sampled_at);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_ride_live_samples_unique
+    ON ride_live_samples (ride_id, sampled_at);
 
-  CREATE INDEX IF NOT EXISTS idx_wait_samples_date
-    ON wait_samples (local_date);
+  CREATE INDEX IF NOT EXISTS idx_ride_live_samples_baseline
+    ON ride_live_samples (day_type, ride_id, hour, sampled_at);
+
+  CREATE INDEX IF NOT EXISTS idx_ride_live_samples_date
+    ON ride_live_samples (local_date);
 
   CREATE TABLE IF NOT EXISTS subscribers (
     chat_id INTEGER PRIMARY KEY,
@@ -67,15 +113,135 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_alerts_log_lookup
     ON alerts_log (chat_id, ride_id, sent_at);
+
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    id TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL
+  );
 `);
 
+const hasMigrationStmt = db.prepare("SELECT 1 FROM schema_migrations WHERE id = ?");
+const insertMigrationStmt = db.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)");
+const tableExistsStmt = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?");
+
+function runMigration(id, fn) {
+  if (hasMigrationStmt.get(id)) return;
+  const run = db.transaction(() => {
+    fn();
+    insertMigrationStmt.run(id, new Date().toISOString());
+  });
+  run();
+}
+
+function tableExists(name) {
+  return !!tableExistsStmt.get(name);
+}
+
+function runMigrations() {
+  runMigration("20260424_migrate_wait_samples_to_ride_live_samples", () => {
+    if (!tableExists("wait_samples")) {
+      console.log("Migration 20260424_migrate_wait_samples_to_ride_live_samples: skipped (wait_samples missing)");
+      return;
+    }
+
+    const upsertRideSample = db.prepare(`
+      INSERT INTO ride_live_samples (
+        ride_id, park_id, ride_name, sampled_at, local_date, local_time,
+        time_bucket, hour, weekday, day_type,
+        standby_open, standby_wait, single_open, single_wait,
+        premier_price_amount, premier_price_currency, premier_return_start, premier_return_end,
+        source, fallback
+      ) VALUES (
+        @ride_id, @park_id, @ride_name, @sampled_at, @local_date, @local_time,
+        @time_bucket, @hour, @weekday, @day_type,
+        @standby_open, @standby_wait, @single_open, @single_wait,
+        @premier_price_amount, @premier_price_currency, @premier_return_start, @premier_return_end,
+        @source, @fallback
+      )
+      ON CONFLICT(ride_id, sampled_at) DO UPDATE SET
+        park_id = excluded.park_id,
+        ride_name = excluded.ride_name,
+        local_date = excluded.local_date,
+        local_time = excluded.local_time,
+        time_bucket = excluded.time_bucket,
+        hour = excluded.hour,
+        weekday = excluded.weekday,
+        day_type = excluded.day_type,
+        standby_open = COALESCE(excluded.standby_open, ride_live_samples.standby_open),
+        standby_wait = COALESCE(excluded.standby_wait, ride_live_samples.standby_wait),
+        single_open = COALESCE(excluded.single_open, ride_live_samples.single_open),
+        single_wait = COALESCE(excluded.single_wait, ride_live_samples.single_wait),
+        source = excluded.source,
+        fallback = excluded.fallback
+    `);
+
+    const legacyCount = db.prepare("SELECT COUNT(*) AS c FROM wait_samples").get().c;
+    const legacyRows = db.prepare("SELECT * FROM wait_samples ORDER BY sampled_at, id");
+    const migrateLegacyRows = db.transaction(() => {
+      for (const row of legacyRows.iterate()) {
+        const standbyRideId = rideByIdIndex.has(row.ride_id) ? row.ride_id : null;
+        const singleRideId = QUEUE_TIMES_SINGLE_RIDER_MAP[row.ride_id] || null;
+        const canonicalRideId = standbyRideId || singleRideId;
+        if (!canonicalRideId) continue;
+
+        const meta = rideByIdIndex.get(canonicalRideId);
+        upsertRideSample.run({
+          ride_id: canonicalRideId,
+          park_id: parkIdForRide(meta),
+          ride_name: meta.name,
+          sampled_at: row.sampled_at,
+          local_date: row.local_date,
+          local_time: row.local_time,
+          time_bucket: row.time_bucket,
+          hour: row.hour,
+          weekday: row.weekday,
+          day_type: row.day_type,
+          standby_open: standbyRideId ? row.is_open : null,
+          standby_wait: standbyRideId ? row.wait_time : null,
+          single_open: singleRideId ? row.is_open : null,
+          single_wait: singleRideId ? row.wait_time : null,
+          premier_price_amount: null,
+          premier_price_currency: null,
+          premier_return_start: null,
+          premier_return_end: null,
+          source: "Queue-Times.com",
+          fallback: 1
+        });
+      }
+    });
+
+    migrateLegacyRows();
+    const after = db.prepare("SELECT COUNT(*) AS c FROM ride_live_samples").get().c;
+    console.log(
+      `Migration 20260424_migrate_wait_samples_to_ride_live_samples: migrated ${legacyCount} legacy rows into ${after} ride_live_samples rows`
+    );
+  });
+
+  runMigration("20260424_drop_legacy_wait_samples", () => {
+    if (!tableExists("wait_samples")) {
+      console.log("Migration 20260424_drop_legacy_wait_samples: skipped (wait_samples missing)");
+      return;
+    }
+    db.exec("DROP TABLE wait_samples");
+    console.log("Migration 20260424_drop_legacy_wait_samples: dropped wait_samples");
+  });
+}
+
+runMigrations();
+
 const insertSample = db.prepare(`
-  INSERT INTO wait_samples (
+  INSERT INTO ride_live_samples (
     ride_id, park_id, ride_name, sampled_at, local_date, local_time,
-    time_bucket, hour, weekday, day_type, is_open, wait_time
+    time_bucket, hour, weekday, day_type,
+    standby_open, standby_wait, single_open, single_wait,
+    premier_price_amount, premier_price_currency, premier_return_start, premier_return_end,
+    source, fallback
   ) VALUES (
     @ride_id, @park_id, @ride_name, @sampled_at, @local_date, @local_time,
-    @time_bucket, @hour, @weekday, @day_type, @is_open, @wait_time
+    @time_bucket, @hour, @weekday, @day_type,
+    @standby_open, @standby_wait, @single_open, @single_wait,
+    @premier_price_amount, @premier_price_currency, @premier_return_start, @premier_return_end,
+    @source, @fallback
   )
 `);
 
@@ -84,10 +250,11 @@ const insertSamples = db.transaction(samples => {
 });
 
 const baselineRows = db.prepare(`
-  SELECT ride_id, hour, wait_time
-  FROM wait_samples
+  SELECT ride_id, hour, standby_wait AS wait_time
+  FROM ride_live_samples
   WHERE day_type = ?
-    AND is_open = 1
+    AND standby_open = 1
+    AND standby_wait IS NOT NULL
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY ride_id, hour, wait_time
 `);
@@ -97,16 +264,16 @@ const historyStats = db.prepare(`
     COUNT(DISTINCT ride_id) AS ride_count,
     MIN(sampled_at) AS first_sample_at,
     MAX(sampled_at) AS last_sample_at
-  FROM wait_samples
+  FROM ride_live_samples
 `);
 const todayStats = db.prepare(`
   SELECT COUNT(*) AS samples_today
-  FROM wait_samples
+  FROM ride_live_samples
   WHERE local_date = ?
 `);
 const dayTypeStats = db.prepare(`
   SELECT day_type, COUNT(*) AS samples
-  FROM wait_samples
+  FROM ride_live_samples
   GROUP BY day_type
   ORDER BY day_type
 `);
@@ -127,27 +294,22 @@ const insertAlert = db.prepare(
   "INSERT INTO alerts_log (chat_id, ride_id, sent_at) VALUES (?, ?, ?)"
 );
 const baselineForRide = db.prepare(`
-  SELECT wait_time
-  FROM wait_samples
+  SELECT standby_wait AS wait_time
+  FROM ride_live_samples
   WHERE day_type = ?
     AND ride_id = ?
     AND hour = ?
-    AND is_open = 1
+    AND standby_open = 1
+    AND standby_wait IS NOT NULL
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY wait_time
 `);
 
-const sampleCount = db.prepare("SELECT COUNT(*) AS count FROM wait_samples").get().count;
+const sampleCount = db.prepare("SELECT COUNT(*) AS count FROM ride_live_samples").get().count;
 console.log(`SQLite wait history: ${DB_PATH} (${sampleCount} samples)`);
 
 let botInstance = null;
 let appUrl = null;
-
-const rideByIdIndex = new Map();
-for (const [name, meta] of Object.entries(RIDES)) {
-  rideByIdIndex.set(meta.id, { name, ...meta });
-}
-const ALERT_TIER_SET = new Set(["S", "A", "B"]);
 
 function percentileFromSorted(sortedValues, p) {
   if (!sortedValues.length) return null;
@@ -240,7 +402,7 @@ function escapeMarkdown(text) {
   return String(text).replace(/([_*`\[\]()])/g, "\\$1");
 }
 
-// ── Queue-Times API proxy (solves CORS) ─────────────────────────────────────
+// ── Live data proxies ───────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public"), {
   setHeaders: (res, filePath) => {
@@ -336,6 +498,143 @@ async function fetchParkQueue(parkId) {
   return r.json();
 }
 
+function normalizeName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[™®*]/g, "")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[^a-z0-9']+/g, " ")
+    .trim();
+}
+
+function findThemeParksRide(liveData, rideName) {
+  const aliases = THEMEPARKS_ALIASES[rideName] || [rideName];
+  const normalizedAliases = aliases.map(normalizeName);
+  return liveData.find(item => {
+    const name = normalizeName(item.name);
+    return normalizedAliases.some(alias => name === alias || name.includes(alias));
+  });
+}
+
+function normalizeThemeParksLive(data) {
+  const liveData = data.liveData || [];
+  const rides = {};
+
+  for (const [name, meta] of Object.entries(RIDES)) {
+    const item = findThemeParksRide(liveData, name);
+    if (!item) continue;
+
+    const standby = item.queue && item.queue.STANDBY;
+    const single = item.queue && item.queue.SINGLE_RIDER;
+    const paid = item.queue && item.queue.PAID_RETURN_TIME;
+    const waitTime = Number.isFinite(standby && standby.waitTime) ? standby.waitTime : 0;
+    const isOpen = item.status === "OPERATING" && Number.isFinite(standby && standby.waitTime);
+
+    rides[meta.id] = {
+      id: meta.id,
+      name,
+      source_id: item.id,
+      source_name: item.name,
+      status: item.status,
+      is_open: isOpen,
+      wait_time: waitTime,
+      single: single ? {
+        is_open: item.status === "OPERATING" && Number.isFinite(single.waitTime),
+        wait_time: Number.isFinite(single.waitTime) ? single.waitTime : null
+      } : null,
+      paid: paid ? {
+        state: paid.state || null,
+        price: paid.price || null,
+        returnStart: paid.returnStart || null,
+        returnEnd: paid.returnEnd || null
+      } : null
+    };
+    rides[name] = rides[meta.id];
+  }
+
+  return {
+    source: "ThemeParks.wiki",
+    fallback: false,
+    source_id: data.id,
+    updated_at: new Date().toISOString(),
+    rides
+  };
+}
+
+function parkIdForRide(meta) {
+  return meta.p === "d" ? 4 : 28;
+}
+
+function normalizeQueueTimesLive(parks) {
+  const queueById = new Map();
+  for (const { data } of parks) {
+    for (const land of data.lands || []) {
+      for (const ride of land.rides || []) {
+        queueById.set(ride.id, ride);
+      }
+    }
+  }
+
+  const rides = {};
+  for (const [name, meta] of Object.entries(RIDES)) {
+    const ride = queueById.get(meta.id);
+    if (!ride) continue;
+    const single = meta.srid ? queueById.get(meta.srid) : null;
+    const waitTime = Number.isFinite(ride.wait_time) ? ride.wait_time : 0;
+    rides[meta.id] = {
+      id: meta.id,
+      name,
+      source_id: ride.id,
+      source_name: ride.name,
+      status: ride.is_open ? "OPERATING" : "CLOSED",
+      is_open: !!ride.is_open,
+      wait_time: waitTime,
+      single: single ? {
+        is_open: !!single.is_open,
+        wait_time: Number.isFinite(single.wait_time) ? single.wait_time : null
+      } : null,
+      paid: null
+    };
+    rides[name] = rides[meta.id];
+  }
+
+  return {
+    source: "Queue-Times.com",
+    fallback: true,
+    updated_at: new Date().toISOString(),
+    rides
+  };
+}
+
+async function fetchQueueTimesLive() {
+  const parks = await Promise.all(PARK_IDS.map(async parkId => ({ parkId, data: await fetchParkQueue(parkId) })));
+  return normalizeQueueTimesLive(parks);
+}
+
+async function fetchThemeParksLive() {
+  const now = Date.now();
+  if (themeParksLiveCache && now - themeParksLiveCache.fetchedAt < THEMEPARKS_CACHE_MS) {
+    return themeParksLiveCache.data;
+  }
+
+  const r = await fetch(`https://api.themeparks.wiki/v1/entity/${THEMEPARKS_DESTINATION_ID}/live`);
+  if (!r.ok) throw new Error(`ThemeParks.wiki live: HTTP ${r.status}`);
+  const data = normalizeThemeParksLive(await r.json());
+  themeParksLiveCache = { fetchedAt: now, data };
+  return data;
+}
+
+async function fetchLiveData() {
+  try {
+    return await fetchThemeParksLive();
+  } catch (err) {
+    console.error("ThemeParks.wiki unavailable, falling back to Queue-Times:", err.message);
+    return fetchQueueTimesLive();
+  }
+}
+
 app.get("/api/queue/:parkId", async (req, res) => {
   try {
     const data = await fetchParkQueue(req.params.parkId);
@@ -343,6 +642,17 @@ app.get("/api/queue/:parkId", async (req, res) => {
     res.json(data);
   } catch {
     res.status(500).json({ error: "Failed to fetch" });
+  }
+});
+
+app.get("/api/live", async (req, res) => {
+  try {
+    const data = await fetchLiveData();
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(data);
+  } catch (err) {
+    console.error("Failed to fetch live data:", err.message);
+    res.status(500).json({ error: "Failed to fetch live data" });
   }
 });
 
@@ -485,7 +795,7 @@ function currentCollectIntervalMinutes(paris) {
 }
 
 const lastSampleAtStmt = db.prepare(
-  "SELECT MAX(sampled_at) AS last FROM wait_samples"
+  "SELECT MAX(sampled_at) AS last FROM ride_live_samples"
 );
 
 async function collectWaitSamples() {
@@ -506,38 +816,47 @@ async function collectWaitSamples() {
   }
 
   try {
-    const parks = await Promise.all(PARK_IDS.map(async parkId => ({ parkId, data: await fetchParkQueue(parkId) })));
+    const live = await fetchLiveData();
     const samples = [];
     const livePerRideId = new Map();
 
-    for (const { parkId, data } of parks) {
-      for (const land of data.lands || []) {
-        for (const ride of land.rides || []) {
-          const waitTime = Number.isFinite(ride.wait_time) ? ride.wait_time : 0;
-          samples.push({
-            ride_id: ride.id,
-            park_id: parkId,
-            ride_name: ride.name,
-            sampled_at: sampledAt.toISOString(),
-            local_date: paris.localDate,
-            local_time: paris.localTime,
-            time_bucket: paris.timeBucket,
-            hour: paris.hour,
-            weekday: paris.weekday,
-            day_type: paris.dayType,
-            is_open: ride.is_open ? 1 : 0,
-            wait_time: waitTime
-          });
-          livePerRideId.set(ride.id, { is_open: !!ride.is_open, wait_time: waitTime });
-        }
-      }
+    for (const [name, meta] of Object.entries(RIDES)) {
+      const ride = live.rides[meta.id] || live.rides[name];
+      if (!ride) continue;
+      const waitTime = Number.isFinite(ride.wait_time) ? ride.wait_time : 0;
+      const singleWait = ride.single && Number.isFinite(ride.single.wait_time) ? ride.single.wait_time : null;
+      const paidAmount = ride.paid && ride.paid.price && Number.isFinite(ride.paid.price.amount) ? ride.paid.price.amount : null;
+      samples.push({
+        ride_id: meta.id,
+        park_id: parkIdForRide(meta),
+        ride_name: name,
+        sampled_at: sampledAt.toISOString(),
+        local_date: paris.localDate,
+        local_time: paris.localTime,
+        time_bucket: paris.timeBucket,
+        hour: paris.hour,
+        weekday: paris.weekday,
+        day_type: paris.dayType,
+        standby_open: ride.is_open ? 1 : 0,
+        standby_wait: waitTime,
+        single_open: ride.single ? (ride.single.is_open ? 1 : 0) : null,
+        single_wait: singleWait,
+        premier_price_amount: paidAmount,
+        premier_price_currency: ride.paid && ride.paid.price ? ride.paid.price.currency || null : null,
+        premier_return_start: ride.paid ? ride.paid.returnStart || null : null,
+        premier_return_end: ride.paid ? ride.paid.returnEnd || null : null,
+        source: live.source,
+        fallback: live.fallback ? 1 : 0
+      });
+      livePerRideId.set(meta.id, { is_open: !!ride.is_open, wait_time: waitTime });
     }
 
     insertSamples(samples);
     const stats = historyStats.get();
     const samplesToday = todayStats.get(paris.localDate).samples_today;
     console.log(
-      `Collected ${samples.length} wait samples (${paris.dayType} ${paris.localTime}); ` +
+      `Collected ${samples.length} wait samples from ${live.source}${live.fallback ? " fallback" : ""} ` +
+      `(${paris.dayType} ${paris.localTime}); ` +
       `total=${stats.total_samples}, today=${samplesToday}, rides=${stats.ride_count}, db=${DB_PATH}`
     );
 
@@ -626,12 +945,6 @@ function startBot() {
 
   bot.onText(/\/wait/, async (msg) => {
     try {
-      const [r1, r2] = await Promise.all([
-        fetch("https://queue-times.com/parks/4/queue_times.json"),
-        fetch("https://queue-times.com/parks/28/queue_times.json")
-      ]);
-      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
-
       const TOP_RIDES = [
         { id: 25, name: "Big Thunder Mountain" },
         { id: 8, name: "Hyperspace Mountain" },
@@ -645,22 +958,22 @@ function startBot() {
         { id: 10848, name: "Avengers Assemble" }
       ];
 
-      const all = {};
-      const proc = d => (d.lands||[]).forEach(l => (l.rides||[]).forEach(r => { all[r.id] = r; }));
-      proc(d1); proc(d2);
+      const live = await fetchLiveData();
 
       let text = "⏱ *Live очереди — топ аттракционы*\n\n";
       TOP_RIDES.forEach(({ id, name }) => {
-        const r = all[id];
+        const r = live.rides[id];
         if (!r) return;
         const status = !r.is_open ? "🔴 Закрыт" :
           r.wait_time === 0 ? "🟢 walk-on" :
           r.wait_time <= 15 ? `🟢 ${r.wait_time} мин` :
           r.wait_time <= 40 ? `🟡 ${r.wait_time} мин` :
           `🔴 ${r.wait_time} мин`;
-        text += `${status}  ${name}\n`;
+        const single = r.single && r.single.is_open ? ` · Single ${r.single.wait_time} мин` : "";
+        const paid = r.paid && r.paid.price && r.paid.state === "AVAILABLE" ? ` · Premier ${r.paid.price.formatted}` : "";
+        text += `${status}${single}${paid}  ${name}\n`;
       });
-      text += "\n_Данные: Queue-Times.com_";
+      text += `\n_Данные: ${live.source}_`;
 
       bot.sendMessage(msg.chat.id, text, {
         parse_mode: "Markdown",

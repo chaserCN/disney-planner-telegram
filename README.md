@@ -32,7 +32,7 @@
 
 ## Структура
 ```
-├── server.js           # Express + Telegram bot + Queue-Times proxy
+├── server.js           # Express + Telegram bot + live data proxy
 ├── public/index.html   # Mini App (mobile-first UI)
 ├── Dockerfile
 └── package.json
@@ -40,10 +40,10 @@
 
 ## Данные
 
-**Live** — Queue-Times API через прокси `/api/queue/:id`, обновление каждые 5 мин
+**Live** — ThemeParks.wiki API через прокси `/api/live`, кеш 60 сек. Включает standby, Single Rider и Premier Access цену/окно. Если ThemeParks.wiki недоступен, сервер временно использует Queue-Times fallback.
 
-**Исторические средние** — захардкожены (средние пиковые значения и лучшие часы на основе данных queue-times.com за 2014–2025)
+**Исторические средние** — SQLite-история, collector пишет нормализованные ThemeParks.wiki wait times под внутренние numeric ride ids. Queue-Times используется только как fallback при сбое ThemeParks.wiki.
 
 Индикатор в UI показывает какие данные активны: 🟢 Live или 🟡 Средние
 
-## Powered by [Queue-Times.com](https://queue-times.com/)
+## Powered by [ThemeParks.wiki](https://themeparks.wiki/) and [Queue-Times.com](https://queue-times.com/)
