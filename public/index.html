@@ -247,12 +247,10 @@ const STR = [
     ]},
 ];
 
-const wm=h=>({9:.12,10:.35,11:.6,12:.85,13:.95,14:1,15:.95,16:.85,17:.7,18:.55,19:.45,20:.35,21:.2,22:.1}[h]||.5);
 const wc=m=>m<=10?"#22c55e":m<=25?"#84cc16":m<=40?"#eab308":m<=60?"#f97316":"#ef4444";
 const esc=s=>(s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;");
 const attr=s=>(s+"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;");
 const pk=k=>k==="d"?"dlp":"st";
-const MIN_BASELINE_SAMPLES=24;
 const liveRide=(n,m)=>S.live?.[m.id]||S.live?.[n];
 const singleRide=(n,m)=>{
   const lv=liveRide(n,m);
@@ -264,21 +262,22 @@ const hasPremierAccess=(n,m)=>!!paidCompact(paidRide(n,m));
 const dayLabel=t=>({weekday:"Будни",weekend:"Выходные",holiday:"Праздники",peak:"Выходные+праздники"}[t]||"Будни");
 const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(new Date()));
 const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
-const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:m.ap*wm(h));
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
 const paidCompact=p=>p&&p.available&&p.price?`Быстрый проход ${esc(p.price.formatted)}`:p&&p.available?"Быстрый проход":"";
 const paidFull=p=>paidCompact(p);
 const singleWaitText=w=>w===0?'?':`${w}`;
+const minuteWord=n=>{const m=Math.abs(n)%100,d=m%10; if(m>10&&m<20)return"минут"; if(d===1)return"минута"; if(d>=2&&d<=4)return"минуты"; return"минут";};
 const baseText=(m,lv)=>{
   const b=baseRide(m);
-  const p25=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.p25:Math.max(0,Math.round(fallbackWait(m)*.75));
-  const p75=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.p75:Math.round(fallbackWait(m)*1.25);
-  const range=`обычно ${p25}-${p75} мин`;
-  if(!lv||!lv.is_open)return range;
+  if(!b||!b.sample_count)return `обычно <span class="cmp cmp-low">?</span>`;
+  const p25=b.p25;
+  const p75=b.p75;
+  const usual=p25===p75?`обычно ${p25} ${minuteWord(p25)}`:`обычно ${p25}-${p75} ${minuteWord(p75)}`;
+  if(!lv||!lv.is_open)return usual;
   const w=lv.wait_time;
-  if(w<p25)return `${range} · <span class="cmp cmp-good">лучше обычного</span>`;
-  if(w>p75)return `${range} · <span class="cmp cmp-bad">хуже обычного</span>`;
-  return `${range} · <span class="cmp cmp-mid">норма</span>`;
+  if(w<p25)return `${usual} · <span class="cmp cmp-good">лучше обычного</span>`;
+  if(w>p75)return `${usual} · <span class="cmp cmp-bad">хуже обычного</span>`;
+  return `${usual} · <span class="cmp cmp-mid">норма</span>`;
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
