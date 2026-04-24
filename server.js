@@ -250,13 +250,13 @@ const insertSamples = db.transaction(samples => {
 });
 
 const baselineRows = db.prepare(`
-  SELECT ride_id, hour, standby_wait AS wait_time
+  SELECT ride_id, hour, standby_wait, single_wait
   FROM ride_live_samples
   WHERE day_type = ?
     AND standby_open = 1
     AND standby_wait IS NOT NULL
     AND sampled_at >= datetime('now', '-120 days')
-  ORDER BY ride_id, hour, wait_time
+  ORDER BY ride_id, hour, standby_wait
 `);
 const historyStats = db.prepare(`
   SELECT
@@ -668,18 +668,22 @@ app.get("/api/baseline", (req, res) => {
   for (const row of rows) {
     const key = `${row.ride_id}:${row.hour}`;
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(row.wait_time);
+    groups.get(key).push(row);
   }
 
   const rides = {};
-  for (const [key, waits] of groups) {
+  for (const [key, samples] of groups) {
     const [rideId, hour] = key.split(":");
+    const standbyWaits = samples.map(row => row.standby_wait).filter(Number.isFinite).sort((a, b) => a - b);
+    const singleWaits = samples.map(row => row.single_wait).filter(Number.isFinite).sort((a, b) => a - b);
     rides[rideId] ||= {};
     rides[rideId][hour] = {
-      sample_count: waits.length,
-      p25: percentile(waits, 0.25),
-      median: percentile(waits, 0.5),
-      p75: percentile(waits, 0.75)
+      sample_count: standbyWaits.length,
+      p25: percentile(standbyWaits, 0.25),
+      median: percentile(standbyWaits, 0.5),
+      p75: percentile(standbyWaits, 0.75),
+      single_sample_count: singleWaits.length,
+      single_median: singleWaits.length ? percentile(singleWaits, 0.5) : null
     };
   }
 

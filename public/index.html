@@ -96,16 +96,16 @@
 
   /* Heatmap */
   .hm-w { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -14px; padding:0 14px; }
-  .hm-i { min-width:440px; }
+  .hm-i { min-width:560px; }
   .hm-h { display:flex; gap:1px; margin-bottom:2px; }
   .hm-h .l { width:110px; flex-shrink:0; }
-  .hm-h .h { flex:1; font-size:9px; text-align:center; color:var(--mu); min-width:16px; }
+  .hm-h .h { flex:1; font-size:9px; text-align:center; color:var(--mu); min-width:24px; }
   .hm-st { font-size:11px; font-weight:700; padding:4px 0; }
   .hm-st.dlp { color:var(--dlp); border-bottom:1px solid rgba(244,114,176,.15); }
   .hm-st.st { color:var(--st); border-bottom:1px solid rgba(96,165,250,.15); }
   .hm-r { display:flex; align-items:center; gap:1px; padding:1px 0; }
   .hm-r .l { width:124px; font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
-  .hm-r .c { flex:1; height:26px; min-width:16px; border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; }
+  .hm-r .c { flex:1; height:30px; min-width:24px; border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; line-height:1; }
   .hm-ins { margin-top:8px; padding:11px; background:var(--cd); border-radius:10px; font-size:12px; color:var(--mu); line-height:1.6; }
 
   /* Plan */
@@ -809,7 +809,7 @@ function draw(){
       h+=`<div class="hm-st ${pk(k)}">${P[k].e} ${P[k].n}</div>`;
       rides.forEach(([n,m])=>{
         h+=`<div class="hm-r"><div class="l">${m.i} ${esc(n)}</div>`;
-        for(let i=0;i<14;i++){const hr=i+9,b=baseRide(m,hr),v=b&&b.sample_count>0?b.median:fallbackWait(m,hr);h+=`<div class="c" style="background:${wc(v)};color:${v>40?'#fff':'#0f172a'}">${v}</div>`}
+        for(let i=0;i<14;i++){const hr=i+9,b=baseRide(m,hr),v=b&&b.sample_count>0?b.median:fallbackWait(m,hr),sv=b&&b.single_sample_count>0?b.single_median:null,txt=sv!==null?`${v}/${sv}`:`${v}`;h+=`<div class="c" style="background:${wc(v)};color:${v>40?'#fff':'#0f172a'}">${txt}</div>`}
         h+=`</div>`;
       });
     });
