@@ -658,10 +658,13 @@ app.get("/api/live", async (req, res) => {
 
 app.get("/api/baseline", (req, res) => {
   const requested = String(req.query.day_type || getParisDateParts(new Date()).dayType);
-  const dayType = ["weekday", "weekend", "holiday"].includes(requested) ? requested : "weekday";
+  const dayType = ["weekday", "weekend", "holiday", "peak"].includes(requested) ? requested : "weekday";
   const groups = new Map();
+  const rows = dayType === "peak"
+    ? baselineRows.all("weekend").concat(baselineRows.all("holiday"))
+    : baselineRows.all(dayType);
 
-  for (const row of baselineRows.all(dayType)) {
+  for (const row of rows) {
     const key = `${row.ride_id}:${row.hour}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(row.wait_time);

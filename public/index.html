@@ -260,7 +260,8 @@ const singleRide=(n,m)=>{
   return m.srid?S.live?.[m.srid]:null;
 };
 const paidRide=(n,m)=>liveRide(n,m)?.paid||null;
-const dayLabel=t=>({weekday:"Будни",weekend:"Выходные",holiday:"Праздники"}[t]||"Будни");
+const hasPremierAccess=(n,m)=>!!paidCompact(paidRide(n,m))||!!m.pa;
+const dayLabel=t=>({weekday:"Будни",weekend:"Выходные",holiday:"Праздники",peak:"Выходные+праздники"}[t]||"Будни");
 const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(new Date()));
 const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:m.ap*wm(h));
@@ -785,7 +786,7 @@ function draw(){
         if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       }
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${m.pa?'<div class="tags"><span class="tg-p">Premier Access</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}${paidBadge}</div></div>`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${hasPremierAccess(n,m)?'<div class="tags"><span class="tg-p">Premier Access</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}${paidBadge}</div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
@@ -801,7 +802,7 @@ function draw(){
   // ═══ HEATMAP ═══
   if(S.tab==="heatmap"){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
-    h+=`<div class="flt">${["weekday","weekend","holiday"].map(t=>`<button class="pl ${S.baseType===t?"on":""}" onclick="loadBaseline('${t}')">${dayLabel(t)}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${["weekday","peak"].map(t=>`<button class="pl ${S.baseType===t?"on":""}" onclick="loadBaseline('${t}')">${dayLabel(t)}</button>`).join("")}</div>`;
     h+=`<div class="hm-w"><div class="hm-i"><div class="hm-h"><div class="l"></div>${Array.from({length:14},(_,i)=>`<div class="h">${i+9}</div>`).join("")}</div>`;
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       const rides=bp(k);if(!rides.length)return;
@@ -886,7 +887,7 @@ function draw(){
       else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
       const paidBadge=paidFull(paid)?`<span class="lv tg-pa">${paidFull(paid)}</span>`:'';
-      const fastTag=m.pa?'<span class="tg-p">Premier Access</span>':'';
+      const fastTag=hasPremierAccess(n,m)?'<span class="tg-p">Premier Access</span>':'';
       h+=`<div class="mv-popup" id="mv-popup" data-mx="${c.mx}" data-my="${c.my}">
         <span class="ar"></span>
         <button class="cl" data-close="1">×</button>
