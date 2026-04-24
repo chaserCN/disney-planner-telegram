@@ -14,6 +14,7 @@ const BASE_COLLECT_INTERVAL_MS = 5 * 60 * 1000;
 const SLOW_COLLECT_EVERY_MINUTES = 10;
 const FAST_COLLECT_DATE = process.env.FAST_COLLECT_DATE || null;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "disney.sqlite");
+const COORDS_ADMIN_TOKEN = process.env.COORDS_ADMIN_TOKEN || "";
 
 const COLLECT_START_MINUTES = 9 * 60 + 30;
 const COLLECT_END_MINUTES = 22 * 60 + 40;
@@ -430,12 +431,26 @@ function writeCoords(coords) {
   fs.writeFileSync(COORDS_PATH, JSON.stringify(coords, null, 2));
 }
 
+function hasCoordsWriteAccess(req) {
+  if (!COORDS_ADMIN_TOKEN) return false;
+  const bearer = req.get("authorization");
+  if (bearer === `Bearer ${COORDS_ADMIN_TOKEN}`) return true;
+  return req.get("x-coords-admin-token") === COORDS_ADMIN_TOKEN;
+}
+
+function requireCoordsWriteAccess(req, res, next) {
+  if (hasCoordsWriteAccess(req)) return next();
+  return res.status(COORDS_ADMIN_TOKEN ? 401 : 403).json({
+    error: COORDS_ADMIN_TOKEN ? "Invalid coords admin token" : "Coordinate editing is disabled"
+  });
+}
+
 app.get("/api/coords", (req, res) => {
   res.set("Cache-Control", "no-store");
   res.json(readCoords());
 });
 
-app.post("/api/coords", (req, res) => {
+app.post("/api/coords", requireCoordsWriteAccess, (req, res) => {
   const { name, mx, my } = req.body || {};
   if (typeof name !== "string" || !name || typeof mx !== "number" || typeof my !== "number") {
     return res.status(400).json({ error: "Expected {name, mx, my}" });
@@ -446,7 +461,7 @@ app.post("/api/coords", (req, res) => {
   res.json({ ok: true, coords });
 });
 
-app.delete("/api/coords/:name", (req, res) => {
+app.delete("/api/coords/:name", requireCoordsWriteAccess, (req, res) => {
   const coords = readCoords();
   delete coords[req.params.name];
   writeCoords(coords);
@@ -707,7 +722,6 @@ app.get("/api/history/status", (req, res) => {
   res.set("Cache-Control", "no-store");
   res.json({
     ok: true,
-    db_path: DB_PATH,
     collector_interval_minutes: currentCollectIntervalMinutes(),
     paris_now: `${paris.localDate} ${paris.localTime}`,
     today_type: paris.dayType,
@@ -809,25 +823,32 @@ function currentCollectIntervalMinutes(paris) {
 const lastSampleAtStmt = db.prepare(
   "SELECT MAX(sampled_at) AS last FROM ride_live_samples"
 );
+let collectorBusy = false;
 
 async function collectWaitSamples() {
-  const sampledAt = new Date();
-  const paris = getParisDateParts(sampledAt);
-
-  if (!isWithinMinutesWindow(paris, COLLECT_START_MINUTES, COLLECT_END_MINUTES)) {
+  if (collectorBusy) {
+    console.log("Skipping collector tick: previous run still in progress");
     return;
   }
-
-  const targetIntervalMs = currentCollectIntervalMinutes(paris) * 60 * 1000;
-  const lastRow = lastSampleAtStmt.get();
-  const lastMs = lastRow && lastRow.last ? new Date(lastRow.last).getTime() : 0;
-  const sinceLast = sampledAt.getTime() - lastMs;
-  const tolerance = 30 * 1000;
-  if (sinceLast + tolerance < targetIntervalMs) {
-    return;
-  }
+  collectorBusy = true;
 
   try {
+    const sampledAt = new Date();
+    const paris = getParisDateParts(sampledAt);
+
+    if (!isWithinMinutesWindow(paris, COLLECT_START_MINUTES, COLLECT_END_MINUTES)) {
+      return;
+    }
+
+    const targetIntervalMs = currentCollectIntervalMinutes(paris) * 60 * 1000;
+    const lastRow = lastSampleAtStmt.get();
+    const lastMs = lastRow && lastRow.last ? new Date(lastRow.last).getTime() : 0;
+    const sinceLast = sampledAt.getTime() - lastMs;
+    const tolerance = 30 * 1000;
+    if (sinceLast + tolerance < targetIntervalMs) {
+      return;
+    }
+
     const live = await fetchLiveData();
     const samples = [];
     const livePerRideId = new Map();
@@ -875,6 +896,8 @@ async function collectWaitSamples() {
     await checkAndSendAlerts(paris, livePerRideId);
   } catch (err) {
     console.error("Failed to collect wait samples:", err.message);
+  } finally {
+    collectorBusy = false;
   }
 }
 
