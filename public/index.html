@@ -267,6 +267,7 @@ const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
 const paidCompact=p=>p&&p.available&&p.price?`Быстрый проход ${esc(p.price.formatted)}`:p&&p.available?"Быстрый проход":"";
 const paidFull=p=>paidCompact(p);
+const singleWaitText=w=>w===0?'?':`${w}`;
 const baseText=(m,lv)=>{
   const b=baseRide(m);
   const p25=b&&b.sample_count>=MIN_BASELINE_SAMPLES?b.p25:Math.max(0,Math.round(fallbackWait(m)*.75));
@@ -772,7 +773,7 @@ function draw(){
       const lv=liveRide(n,m);
       const slv=singleRide(n,m);
       const paid=paidRide(n,m);
-      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
+      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${singleWaitText(slv.wait_time)} мин</span>`:'';
       let badge='<span style="font-size:9px;color:var(--mu)">—</span>';
       if(S.ld)badge='<span style="font-size:9px;color:var(--mu)">⏳</span>';
       else if(lv){
@@ -860,7 +861,7 @@ function draw(){
         else{
           const w=lv.wait_time;
           const color=wc(w), tx=w>40?'#fff':'#0f172a';
-          const sPart=slv&&slv.is_open?`/${slv.wait_time}`:'';
+          const sPart=slv&&slv.is_open?`/${singleWaitText(slv.wait_time)}`:'';
           wt=`<span class="mv-wt" style="background:${color};color:${tx}">${w===0?'0':w}${sPart}</span>`;
         }
       }
@@ -878,7 +879,7 @@ function draw(){
       else if(!lv)badge='<span class="lv lv-off">нет live</span>';
       else if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
       else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
-      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
+      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${singleWaitText(slv.wait_time)} мин</span>`:'';
       const fastTag=hasPremierAccess(n,m)?`<span class="tg-p">${paidFull(paid)}</span>`:'';
       h+=`<div class="mv-popup" id="mv-popup" data-mx="${c.mx}" data-my="${c.my}">
         <span class="ar"></span>
