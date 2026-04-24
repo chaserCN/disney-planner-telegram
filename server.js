@@ -743,7 +743,10 @@ app.get("/api/baseline", (req, res) => {
   for (const [key, samples] of groups) {
     const [rideId, hour] = key.split(":");
     const standbyWaits = samples.map(row => row.standby_wait).filter(Number.isFinite).sort((a, b) => a - b);
-    const singleWaits = samples.map(row => row.single_wait).filter(Number.isFinite).sort((a, b) => a - b);
+    const singleWaits = samples
+      .map(row => row.single_wait)
+      .filter(wait => Number.isFinite(wait) && wait > 0)
+      .sort((a, b) => a - b);
     rides[rideId] ||= {};
     rides[rideId][hour] = {
       sample_count: standbyWaits.length,
