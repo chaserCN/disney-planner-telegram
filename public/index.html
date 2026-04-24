@@ -274,6 +274,8 @@ const baseText=(m,lv)=>{
 let S = {tab:"ranking",pf:"all",si:0,live:null,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null};
 const MV = {scale:1,tx:0,ty:0,ready:false};
 let geoMsgTimer = null;
+let userPosTimer = null;
+const USER_POS_TTL_MS = 5 * 60 * 1000;
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
 
 function setGeoMsg(message){
@@ -467,8 +469,10 @@ function requestUserLocation(){
       setGeoMsg("Вы вне зоны карты");
       return;
     }
-    set({userPos:projected,geoBusy:false});
+    set({userPos:projected,userPosAt:Date.now(),geoBusy:false});
     setGeoMsg(null);
+    if(userPosTimer)clearTimeout(userPosTimer);
+    userPosTimer=setTimeout(()=>{userPosTimer=null;set({userPos:null,userPosAt:null})},USER_POS_TTL_MS);
     const wrap=document.getElementById("mv-wrap");
     const img=document.getElementById("mv-img");
     if(!wrap||!img||!img.naturalWidth)return;
@@ -825,7 +829,7 @@ function draw(){
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="mv-scene" id="mv-scene">`;
     h+=`<img class="mv-img" id="mv-img" src="map.jpg" ondragstart="return false">`;
-    if(S.userPos&&Number.isFinite(S.userPos.mx)&&Number.isFinite(S.userPos.my)){
+    if(S.userPos&&Number.isFinite(S.userPos.mx)&&Number.isFinite(S.userPos.my)&&S.userPosAt&&Date.now()-S.userPosAt<USER_POS_TTL_MS){
       h+=`<div class="usr-pt" style="left:${S.userPos.mx}%;top:${S.userPos.my}%"></div>`;
     }
     Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t)).forEach(([n,m])=>{
