@@ -269,9 +269,9 @@ const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
 const paidCompact=p=>{
   if(!p)return"";
-  if(p.available&&p.price)return`Fast-pass: ${esc(p.price.formatted)}`;
-  if(p.available)return"Fast-pass:";
-  if(p.price)return`Fast-pass: ${esc(p.price.formatted)} · продано`;
+  if(p.available&&p.price)return`Premier: ${esc(p.price.formatted)}`;
+  if(p.available)return"Premier:";
+  if(p.price)return`Premier: ${esc(p.price.formatted)} · продано`;
   return"";
 };
 const paidFull=p=>paidCompact(p);
@@ -842,7 +842,7 @@ function draw(){
       if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg};color:${tc.tx}">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
       h+=`<div class="bl-nt">${b.nt}</div></div>`;
     });
-    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Frozen, Indiana, Avengers. -30–60 мин<br><br><b>Fast-pass</b> — смотрите live-цену в карточках. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
+    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Frozen, Indiana, Avengers. -30–60 мин<br><br><b>Premier Access</b> — смотрите live-цену в карточках. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
   }
 
   // ═══ MAP ═══
