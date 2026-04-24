@@ -11,6 +11,7 @@
     "Pirates of the Caribbean":   {id:3,t:"A",tp:"сюжет лодки",p:"d",l:"Adventureland",bh:[9,10,13,14,20],ap:40,i:"🏴‍☠️",sr:0,pa:1},
     "Indiana Jones":              {id:2,srid:7306,t:"A",tp:"горки",p:"d",l:"Adventureland",bh:[9,10,20,21],ap:50,i:"🏺",sr:1,pa:0},
     "Peter Pan's Flight":         {id:22,t:"A",tp:"сюжет",p:"d",l:"Fantasyland",bh:[9,21,22],ap:75,i:"🧚",sr:0,pa:1},
+    "Snow White and the Seven Dwarfs": {id:15,t:"B",tp:"сюжет",p:"d",l:"Fantasyland",bh:[10,11,20],ap:30,i:"🍎",sr:0,pa:0},
     "Buzz Lightyear Laser Blast": {id:5,t:"B",tp:"интерактив",p:"d",l:"Discoveryland",bh:[9,10,13,20],ap:40,i:"🔫",sr:0,pa:1},
     "Star Tours":                 {id:9,t:"B",tp:"3D-полёт",p:"d",l:"Discoveryland",bh:[10,11,14,20],ap:30,i:"⭐",sr:0,pa:1},
     "It's a Small World":         {id:19,t:"C",tp:"сюжет лодки",p:"d",l:"Fantasyland",bh:[12,13,14,15],ap:20,i:"🌍",sr:0,pa:0},
@@ -26,28 +27,5 @@
     "Cars Road Trip":             {id:29,t:"C",tp:"прогулка",p:"s",l:"World of Pixar",bh:[10,11,14,15],ap:30,i:"🏎️",sr:0,pa:1},
   };
 
-  const RC = {
-    "Big Thunder Mountain":       {mx:40.3,  my:39.94},
-    "Hyperspace Mountain":        {mx:77.59, my:21.94},
-    "Peter Pan's Flight":         {mx:32.11, my:21.02},
-    "Phantom Manor":              {mx:58.62, my:43.19},
-    "Pirates of the Caribbean":   {mx:25.65, my:23.8},
-    "Indiana Jones":              {mx:14.66, my:32.28},
-    "Buzz Lightyear Laser Blast": {mx:68.97, my:24.61},
-    "Star Tours":                 {mx:76.29, my:14.86},
-    "It's a Small World":         {mx:51.72, my:14.86},
-    "Autopia":                    {mx:76.51, my:23.92},
-    "Orbitron":                   {mx:72.84, my:22.29},
-    "Frozen Ever After":          {mx:26.94, my:96.95},
-    "Crush's Coaster":            {mx:71.34, my:66.65},
-    "Tower of Terror":            {mx:76.94, my:77.1},
-    "Ratatouille":                {mx:53.23, my:70.48},
-    "Avengers Assemble":          {mx:82.54, my:86.97},
-    "Spider-Man W.E.B.":          {mx:83.62, my:82.2},
-    "Cars Road Trip":             {mx:41.59, my:79.42},
-    "Toy Soldiers":               {mx:62.5,  my:73.61},
-    "RC Racer":                   {mx:57.97, my:76.17},
-  };
-
-  return { R, RC };
+  return { R };
 });

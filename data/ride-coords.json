@@ -1,0 +1,90 @@
+{
+  "Big Thunder Mountain": {
+    "mx": 40.3,
+    "my": 39.94
+  },
+  "Hyperspace Mountain": {
+    "mx": 77.59,
+    "my": 21.94
+  },
+  "Peter Pan's Flight": {
+    "mx": 32.11,
+    "my": 21.02
+  },
+  "Snow White and the Seven Dwarfs": {
+    "mx": 42.1,
+    "my": 22.2
+  },
+  "Phantom Manor": {
+    "mx": 58.62,
+    "my": 43.19
+  },
+  "Pirates of the Caribbean": {
+    "mx": 25.65,
+    "my": 23.8
+  },
+  "Indiana Jones": {
+    "mx": 14.66,
+    "my": 32.28
+  },
+  "Buzz Lightyear Laser Blast": {
+    "mx": 68.97,
+    "my": 24.61
+  },
+  "Star Tours": {
+    "mx": 76.29,
+    "my": 14.86
+  },
+  "It's a Small World": {
+    "mx": 51.72,
+    "my": 14.86
+  },
+  "Autopia": {
+    "mx": 76.51,
+    "my": 23.92
+  },
+  "Orbitron": {
+    "mx": 72.84,
+    "my": 22.29
+  },
+  "Dumbo": {
+    "mx": 37.93,
+    "my": 18.23
+  },
+  "Frozen Ever After": {
+    "mx": 26.94,
+    "my": 96.95
+  },
+  "Crush's Coaster": {
+    "mx": 71.34,
+    "my": 66.65
+  },
+  "Tower of Terror": {
+    "mx": 76.94,
+    "my": 77.1
+  },
+  "Ratatouille": {
+    "mx": 53.23,
+    "my": 70.48
+  },
+  "Avengers Assemble": {
+    "mx": 82.54,
+    "my": 86.97
+  },
+  "Spider-Man W.E.B.": {
+    "mx": 83.62,
+    "my": 82.2
+  },
+  "Cars Road Trip": {
+    "mx": 41.59,
+    "my": 79.42
+  },
+  "Toy Soldiers": {
+    "mx": 62.5,
+    "my": 73.61
+  },
+  "RC Racer": {
+    "mx": 57.97,
+    "my": 76.17
+  }
+}

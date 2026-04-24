@@ -25,6 +25,15 @@
 ### 4. Готово!
 Открой бота → `/start` → нажми кнопку "Открыть планировщик"
 
+## Production
+
+Base URL: `https://disney-planner-telegram-production.up.railway.app`
+
+- App: `https://disney-planner-telegram-production.up.railway.app/`
+- Service status: `https://disney-planner-telegram-production.up.railway.app/api/history/status`
+- Live wait times: `https://disney-planner-telegram-production.up.railway.app/api/live`
+- Weather: `https://disney-planner-telegram-production.up.railway.app/api/weather`
+
 ## Команды бота
 - `/start` — кнопка с Mini App
 - `/wait` — текущие очереди текстом

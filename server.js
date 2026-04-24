@@ -41,6 +41,7 @@ const THEMEPARKS_ALIASES = {
   "Pirates of the Caribbean": ["Pirates of the Caribbean"],
   "Indiana Jones": ["Indiana Jones"],
   "Peter Pan's Flight": ["Peter Pan's Flight"],
+  "Snow White and the Seven Dwarfs": ["Blanche-Neige et les Sept Nains"],
   "Buzz Lightyear Laser Blast": ["Buzz Lightyear Laser Blast"],
   "Star Tours": ["Star Tours"],
   "It's a Small World": ["it's a small world"],

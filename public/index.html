@@ -208,7 +208,7 @@ if (tg) {
 }
 
 // ── Data ────────────────────────────────────────────────────────────────────
-const { R, RC } = window.RIDES_DATA;
+const { R } = window.RIDES_DATA;
 
 const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"09:30–22:40"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"09:30–22:40"} };
 const T = {S:{bg:"#8b5cf6",tx:"#fff",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#c4b5fd",tx:"#2e1065",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
@@ -295,7 +295,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null};
 const weatherParisHour=s=>{
   if(!s)return null;
   const d=new Date(s);
