@@ -891,7 +891,7 @@ function currentCollectIntervalMinutes(paris) {
   return isFastCollectDay(paris || getParisDateParts(new Date())) ? 5 : SLOW_COLLECT_EVERY_MINUTES;
 }
 
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8722&longitude=2.7758&current=temperature_2m,weather_code,precipitation&timezone=Europe%2FParis";
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8722&longitude=2.7758&current=temperature_2m,weather_code,precipitation&daily=sunrise,sunset&timezone=Europe%2FParis";
 const WEATHER_TTL_MS = 10 * 60 * 1000;
 let weatherCache = { data: null, fetchedAt: 0 };
 
@@ -903,12 +903,15 @@ async function getWeather() {
   if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
   const j = await r.json();
   const cur = j.current || {};
+  const daily = j.daily || {};
   weatherCache = {
     data: {
       code: Number.isFinite(cur.weather_code) ? cur.weather_code : null,
       temp: Number.isFinite(cur.temperature_2m) ? cur.temperature_2m : null,
       precipitation: Number.isFinite(cur.precipitation) ? cur.precipitation : null,
-      observedAt: cur.time || null
+      observedAt: cur.time || null,
+      sunrise: Array.isArray(daily.sunrise) ? daily.sunrise[0] || null : null,
+      sunset: Array.isArray(daily.sunset) ? daily.sunset[0] || null : null
     },
     fetchedAt: Date.now()
   };

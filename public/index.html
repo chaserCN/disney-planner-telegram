@@ -302,12 +302,23 @@ const weatherParisHour=s=>{
   if(Number.isNaN(d.getTime()))return null;
   return Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(d));
 };
-const isNightWeather=s=>{
-  const h=weatherParisHour(s);
-  return h!=null&&(h>=21||h<6);
+const weatherTs=s=>{
+  if(!s)return null;
+  const d=new Date(s);
+  return Number.isNaN(d.getTime())?null:d.getTime();
 };
-const WX_ICON=(c, observedAt)=>{
-  const night=isNightWeather(observedAt);
+const isNightWeather=(observedAt, sunrise, sunset)=>{
+  const observedTs=weatherTs(observedAt);
+  const sunriseTs=weatherTs(sunrise);
+  const sunsetTs=weatherTs(sunset);
+  if(observedTs==null||sunriseTs==null||sunsetTs==null){
+    const h=weatherParisHour(observedAt);
+    return h!=null&&(h>=21||h<6);
+  }
+  return observedTs<sunriseTs||observedTs>=sunsetTs;
+};
+const WX_ICON=(c, observedAt, sunrise, sunset)=>{
+  const night=isNightWeather(observedAt, sunrise, sunset);
   if(c==null)return"⛅";
   if(c===0)return night?"🌙":"☀️";
   if(c<=3)return night?"☁️":"⛅";
@@ -817,7 +828,7 @@ function draw(){
     :`<button class="sub-btn" onclick="toggleSubscription()" title="Включить уведомления">🔕</button>`);
   const wx=S.weather;
   const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"";
-  const wxHtml=wx?`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx.code, wx.observedAt)}${Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`:"";
+  const wxHtml=wx?`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx.code, wx.observedAt, wx.sunrise, wx.sunset)}${Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`:"";
 
   let h=`<div class="hdr">
     <div class="hdr-l"><div class="hdr-top"><h1>Disneyland Paris</h1>${wxHtml}</div><div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
