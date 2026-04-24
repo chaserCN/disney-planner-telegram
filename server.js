@@ -87,7 +87,8 @@ db.exec(`
     premier_return_start TEXT,
     premier_return_end TEXT,
     source TEXT NOT NULL,
-    fallback INTEGER NOT NULL DEFAULT 0
+    fallback INTEGER NOT NULL DEFAULT 0,
+    weather_code INTEGER
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_ride_live_samples_unique
@@ -229,6 +230,16 @@ function runMigrations() {
     db.exec("DROP TABLE wait_samples");
     console.log("Migration 20260424_drop_legacy_wait_samples: dropped wait_samples");
   });
+
+  runMigration("20260424_add_weather_code_to_samples", () => {
+    const cols = db.prepare("PRAGMA table_info(ride_live_samples)").all();
+    if (cols.some(c => c.name === "weather_code")) {
+      console.log("Migration 20260424_add_weather_code_to_samples: skipped (column exists)");
+      return;
+    }
+    db.exec("ALTER TABLE ride_live_samples ADD COLUMN weather_code INTEGER");
+    console.log("Migration 20260424_add_weather_code_to_samples: column added");
+  });
 }
 
 runMigrations();
@@ -239,13 +250,13 @@ const insertSample = db.prepare(`
     time_bucket, hour, weekday, day_type,
     standby_open, standby_wait, single_open, single_wait,
     premier_price_amount, premier_price_currency, premier_return_start, premier_return_end,
-    source, fallback
+    source, fallback, weather_code
   ) VALUES (
     @ride_id, @park_id, @ride_name, @sampled_at, @local_date, @local_time,
     @time_bucket, @hour, @weekday, @day_type,
     @standby_open, @standby_wait, @single_open, @single_wait,
     @premier_price_amount, @premier_price_currency, @premier_return_start, @premier_return_end,
-    @source, @fallback
+    @source, @fallback, @weather_code
   )
 `);
 
@@ -259,6 +270,7 @@ const baselineRows = db.prepare(`
   WHERE day_type = ?
     AND standby_open = 1
     AND standby_wait IS NOT NULL
+    AND (weather_code IS NULL OR weather_code < 63)
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY ride_id, hour, standby_wait
 `);
@@ -305,6 +317,7 @@ const baselineForRide = db.prepare(`
     AND hour = ?
     AND standby_open = 1
     AND standby_wait IS NOT NULL
+    AND (weather_code IS NULL OR weather_code < 63)
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY wait_time
 `);
@@ -692,29 +705,11 @@ app.get("/api/live", async (req, res) => {
   }
 });
 
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8722&longitude=2.7758&current=temperature_2m,weather_code,precipitation&timezone=Europe%2FParis";
-const WEATHER_TTL_MS = 10 * 60 * 1000;
-let weatherCache = { data: null, fetchedAt: 0 };
-
 app.get("/api/weather", async (req, res) => {
   try {
-    if (!weatherCache.data || Date.now() - weatherCache.fetchedAt > WEATHER_TTL_MS) {
-      const r = await fetch(WEATHER_URL);
-      if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
-      const j = await r.json();
-      const cur = j.current || {};
-      weatherCache = {
-        data: {
-          code: Number.isFinite(cur.weather_code) ? cur.weather_code : null,
-          temp: Number.isFinite(cur.temperature_2m) ? cur.temperature_2m : null,
-          precipitation: Number.isFinite(cur.precipitation) ? cur.precipitation : null,
-          observedAt: cur.time || null
-        },
-        fetchedAt: Date.now()
-      };
-    }
+    const data = await getWeather();
     res.set("Cache-Control", "public, max-age=300");
-    res.json(weatherCache.data);
+    res.json(data);
   } catch (err) {
     console.error("Failed to fetch weather:", err.message);
     if (weatherCache.data) return res.json(weatherCache.data);
@@ -866,6 +861,30 @@ function currentCollectIntervalMinutes(paris) {
   return isFastCollectDay(paris || getParisDateParts(new Date())) ? 5 : SLOW_COLLECT_EVERY_MINUTES;
 }
 
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8722&longitude=2.7758&current=temperature_2m,weather_code,precipitation&timezone=Europe%2FParis";
+const WEATHER_TTL_MS = 10 * 60 * 1000;
+let weatherCache = { data: null, fetchedAt: 0 };
+
+async function getWeather() {
+  if (weatherCache.data && Date.now() - weatherCache.fetchedAt <= WEATHER_TTL_MS) {
+    return weatherCache.data;
+  }
+  const r = await fetch(WEATHER_URL);
+  if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
+  const j = await r.json();
+  const cur = j.current || {};
+  weatherCache = {
+    data: {
+      code: Number.isFinite(cur.weather_code) ? cur.weather_code : null,
+      temp: Number.isFinite(cur.temperature_2m) ? cur.temperature_2m : null,
+      precipitation: Number.isFinite(cur.precipitation) ? cur.precipitation : null,
+      observedAt: cur.time || null
+    },
+    fetchedAt: Date.now()
+  };
+  return weatherCache.data;
+}
+
 const lastSampleAtStmt = db.prepare(
   "SELECT MAX(sampled_at) AS last FROM ride_live_samples"
 );
@@ -896,6 +915,13 @@ async function collectWaitSamples() {
     }
 
     const live = await fetchLiveData();
+    let weatherCode = null;
+    try {
+      const w = await getWeather();
+      if (w && Number.isFinite(w.code)) weatherCode = w.code;
+    } catch (err) {
+      console.warn("Weather fetch failed during collection:", err.message);
+    }
     const samples = [];
     const livePerRideId = new Map();
 
@@ -925,7 +951,8 @@ async function collectWaitSamples() {
         premier_return_start: ride.paid ? ride.paid.returnStart || null : null,
         premier_return_end: ride.paid ? ride.paid.returnEnd || null : null,
         source: live.source,
-        fallback: live.fallback ? 1 : 0
+        fallback: live.fallback ? 1 : 0,
+        weather_code: weatherCode
       });
       livePerRideId.set(meta.id, { is_open: !!ride.is_open, wait_time: waitTime });
     }
