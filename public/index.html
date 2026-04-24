@@ -34,8 +34,10 @@
 
   /* Header */
   .hdr { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; padding-top:2px; }
-  .hdr h1 { font-size:20px; font-weight:800; letter-spacing:0; }
+  .hdr-l { display:flex; align-items:center; gap:8px; min-width:0; }
+  .hdr h1 { font-size:20px; font-weight:800; letter-spacing:0; min-width:0; }
   .hdr-r { display:flex; align-items:center; gap:10px; }
+  .hdr-meta { display:flex; align-items:center; gap:8px; min-width:0; }
   .live-mini { font-size:12px; color:var(--mu); white-space:nowrap; font-weight:700; }
   .sub-btn { width:34px; height:34px; border-radius:50%; border:1px solid var(--bd); background:var(--cd); color:var(--tx); font-size:16px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; }
   .sub-btn.on { background:color-mix(in srgb, var(--ac) 20%, var(--cd)); border-color:var(--ac); }
@@ -51,11 +53,8 @@
   .pl.on { border-color:var(--ac); background:color-mix(in srgb, var(--ac) 15%, transparent); color:var(--ac-tx); }
   .pl.on-d { border-color:var(--dlp); background:rgba(244,114,176,.12); color:var(--dlp); }
   .pl.on-s { border-color:var(--st); background:rgba(96,165,250,.12); color:var(--st); }
-  .wx { margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:0 4px; font-size:15px; line-height:1; color:var(--mu); flex-shrink:0; user-select:none; align-self:center; }
+  .wx { display:inline-flex; align-items:center; gap:4px; padding:0 2px; font-size:15px; line-height:1; color:var(--mu); flex-shrink:0; user-select:none; align-self:center; white-space:nowrap; }
   .wx .t { font-size:13px; font-weight:500; }
-  @media (max-width: 390px) {
-    .wx { width:100%; margin-left:0; justify-content:flex-end; padding-right:2px; }
-  }
 
   /* Park section */
   .ps { margin-bottom:14px; }
@@ -805,10 +804,13 @@ function draw(){
   const subBtn=S.sub===null?'':(S.sub
     ?`<button class="sub-btn on" onclick="toggleSubscription()" title="Уведомления включены">🔔</button>`
     :`<button class="sub-btn" onclick="toggleSubscription()" title="Включить уведомления">🔕</button>`);
+  const wx=S.weather;
+  const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"погода загружается";
+  const wxHtml=`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx?wx.code:null)}${wx&&Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`;
 
   let h=`<div class="hdr">
-    <h1>Disneyland Paris</h1>
-    <div class="hdr-r">${subBtn}<div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
+    <div class="hdr-l"><h1>Disneyland Paris</h1>${wxHtml}</div>
+    <div class="hdr-r">${subBtn}<div class="hdr-meta"><div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div></div>
   </div>`;
 
   h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🔥"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
@@ -885,10 +887,7 @@ function draw(){
 
   // ═══ MAP ═══
   if(S.tab==="map"){
-    const wx=S.weather;
-    const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"погода загружается";
-    const wxHtml=`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx?wx.code:null)}${wx&&Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`;
-    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}${wxHtml}</div>`;
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
 
     const minStars=tierMinStars(S.mrt);
