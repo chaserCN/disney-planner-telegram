@@ -18,13 +18,12 @@ const COORDS_ADMIN_TOKEN = process.env.COORDS_ADMIN_TOKEN || "";
 
 const COLLECT_START_MINUTES = 9 * 60 + 30;
 const COLLECT_END_MINUTES = 22 * 60 + 40;
-const ALERT_START_MINUTES = 9 * 60 + 30;
-const ALERT_END_MINUTES = 22 * 60 + 40;
+const ALERT_START_MINUTES = 10 * 60;
+const ALERT_END_MINUTES = 22 * 60;
 const ALERT_CURRENT_MAX_WAIT = 20;
 const ALERT_BASELINE_MIN_WAIT = 15;
-const ALERT_MIN_DROP_RATIO = 3;
+const ALERT_MIN_DROP_RATIO = 2;
 const ALERT_WAIT_FLOOR = 5;
-const ALERT_MIN_BASELINE_SAMPLES = 12;
 const ALERT_DEBOUNCE_MS = 60 * 60 * 1000;
 const ALERT_BURST_WINDOW_MS = 10 * 60 * 1000;
 const ALERT_BURST_LIMIT = 3;
@@ -292,8 +291,8 @@ const isSubscribedStmt = db.prepare("SELECT 1 FROM subscribers WHERE chat_id = ?
 const recentAlertByRide = db.prepare(
   "SELECT 1 FROM alerts_log WHERE chat_id = ? AND ride_id = ? AND sent_at >= ? LIMIT 1"
 );
-const recentAlertsCount = db.prepare(
-  "SELECT COUNT(*) AS c FROM alerts_log WHERE chat_id = ? AND sent_at >= ?"
+const recentAlertRides = db.prepare(
+  "SELECT ride_id FROM alerts_log WHERE chat_id = ? AND sent_at >= ?"
 );
 const insertAlert = db.prepare(
   "INSERT INTO alerts_log (chat_id, ride_id, sent_at) VALUES (?, ?, ?)"
@@ -347,7 +346,7 @@ async function checkAndSendAlerts(paris, livePerRideId) {
     if (!meta || !ALERT_TIER_SET.has(meta.t)) continue;
 
     const waits = baselineForRide.all(paris.dayType, rideId, paris.hour).map(r => r.wait_time);
-    if (waits.length < ALERT_MIN_BASELINE_SAMPLES) continue;
+    if (!waits.length) continue;
     const median = percentileFromSorted(waits, 0.5);
     if (median === null || median < ALERT_BASELINE_MIN_WAIT) continue;
 
@@ -363,16 +362,19 @@ async function checkAndSendAlerts(paris, livePerRideId) {
 
   for (const sub of subscribers) {
     const chatId = sub.chat_id;
-    let sentInBurstWindow = recentAlertsCount.get(chatId, burstCutoff).c;
-    if (sentInBurstWindow >= ALERT_BURST_LIMIT) continue;
+    const recentRides = recentAlertRides.all(chatId, burstCutoff).map(r => r.ride_id);
+    let bTierInBurstWindow = recentRides.reduce((n, rid) => {
+      const m = rideByIdIndex.get(rid);
+      return n + (m && m.t === "B" ? 1 : 0);
+    }, 0);
 
     for (const c of candidates) {
-      if (sentInBurstWindow >= ALERT_BURST_LIMIT) break;
+      if (c.meta.t === "B" && bTierInBurstWindow >= ALERT_BURST_LIMIT) continue;
       if (recentAlertByRide.get(chatId, c.rideId, debounceCutoff)) continue;
       const sent = await sendAlert(chatId, c);
       if (!sent) continue;
       insertAlert.run(chatId, c.rideId, nowIso);
-      sentInBurstWindow += 1;
+      if (c.meta.t === "B") bTierInBurstWindow += 1;
     }
   }
 }
