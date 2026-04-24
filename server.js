@@ -379,11 +379,25 @@ async function checkAndSendAlerts(paris, livePerRideId) {
   }
 }
 
+function formatRatio(r) {
+  const rounded = Math.round(r * 2) / 2;
+  const isHalf = rounded % 1 !== 0;
+  const num = isHalf ? rounded.toFixed(1) : String(Math.round(rounded));
+  const whole = Math.trunc(rounded);
+  const mod100 = whole % 100;
+  const mod10 = whole % 10;
+  let word;
+  if (isHalf) word = "раза";
+  else if (mod100 >= 11 && mod100 <= 14) word = "раз";
+  else if (mod10 >= 2 && mod10 <= 4) word = "раза";
+  else word = "раз";
+  return `${num} ${word}`;
+}
+
 async function sendAlert(chatId, c) {
-  const ratioText = `в ${c.dropRatio >= 10 ? Math.round(c.dropRatio) : c.dropRatio.toFixed(1)} раз меньше`;
   const text =
     `🎯 *${escapeMarkdown(c.meta.name)}* — ${c.current} мин\n` +
-    `Обычно в это время ~${c.median} мин (${ratioText})`;
+    `Обычно в это время ~${c.median} мин (сейчас в ${formatRatio(c.dropRatio)} меньше)`;
 
   const keyboard = appUrl
     ? { inline_keyboard: [[{ text: "🗺️ Открыть планировщик", web_app: { url: appUrl } }]] }

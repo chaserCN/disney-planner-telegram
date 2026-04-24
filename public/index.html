@@ -51,6 +51,8 @@
   .pl.on { border-color:var(--ac); background:color-mix(in srgb, var(--ac) 15%, transparent); color:var(--ac-tx); }
   .pl.on-d { border-color:var(--dlp); background:rgba(244,114,176,.12); color:var(--dlp); }
   .pl.on-s { border-color:var(--st); background:rgba(96,165,250,.12); color:var(--st); }
+  .wx { margin-left:auto; display:inline-flex; align-items:center; justify-content:center; gap:4px; min-width:36px; height:32px; padding:0 10px; border-radius:99px; border:1px solid var(--bd); background:var(--cd); font-size:15px; line-height:1; flex-shrink:0; }
+  .wx .t { font-size:12px; font-weight:600; color:var(--mu); }
 
   /* Park section */
   .ps { margin-bottom:14px; }
@@ -291,7 +293,31 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{...RC},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null};
+const WX_ICON=c=>{
+  if(c==null)return"⛅";
+  if(c===0)return"☀️";
+  if(c<=3)return"⛅";
+  if(c<=48)return"🌫️";
+  if(c<=57)return"🌦️";
+  if(c<=67)return"🌧️";
+  if(c<=77)return"🌨️";
+  if(c<=82)return"🌧️";
+  if(c<=86)return"🌨️";
+  return"⛈️";
+};
+const WX_LABEL=c=>{
+  if(c==null)return"погода";
+  if(c===0)return"ясно";
+  if(c<=3)return"облачно";
+  if(c<=48)return"туман";
+  if(c<=57)return"морось";
+  if(c<=67)return"дождь";
+  if(c<=77)return"снег";
+  if(c<=82)return"ливень";
+  if(c<=86)return"снег";
+  return"гроза";
+};
 const MV = {scale:1,tx:0,ty:0,ready:false};
 let geoMsgTimer = null;
 let userPosTimer = null;
@@ -847,7 +873,10 @@ function draw(){
 
   // ═══ MAP ═══
   if(S.tab==="map"){
-    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
+    const wx=S.weather;
+    const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"погода загружается";
+    const wxHtml=`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx?wx.code:null)}${wx&&Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`;
+    h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}${wxHtml}</div>`;
     h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
 
     const minStars=tierMinStars(S.mrt);
