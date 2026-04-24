@@ -87,7 +87,6 @@
   .cmp-bad { color:#f97316; }
   .cmp-low { color:var(--mu); }
   .tg-s { background:#164e63; color:#a5f3fc; }
-  .tg-pa { background:#451a03; color:#fed7aa; }
   .tg-p { color:#fbbf24; font-weight:700; font-size:11px; }
 
   /* Legend */
@@ -214,7 +213,7 @@ const DEFAULT_CALIBRATION_POINTS = [
 const STR = [
   {id:"s1",tt:"Adventure World → Главный",sub:"Frozen утром, замок и фейерверк вечером. 1 переход",em:"🎬→🏰",
     bl:[
-      {lb:"Старт Adventure World",tm:"9:30–12:30",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Именно в этом порядке — топ Premier Access приоритеты, очереди быстро растут"},
+      {lb:"Старт Adventure World",tm:"9:30–12:30",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Именно в этом порядке — топ приоритеты по быстрому проходу, очереди быстро растут"},
       {lb:"Обед",tm:"12:30–13:30",pk:"s",ic:"🍕",rd:[],nt:"Пик очередей — ешьте! Bistrot Chez Rémy"},
       {lb:"После обеда",tm:"13:30–16:00",pk:"s",ic:"☀️",rd:["Spider-Man W.E.B.","Cars Road Trip","Toy Soldiers","RC Racer","Avengers Assemble"],nt:"Спокойнее, фото и любимые зоны без спешки"},
       {lb:"Переход",tm:"16:00–16:15",pk:"x",ic:"🚶",rd:[],nt:"~15 мин. Единственный переход!"},
@@ -223,15 +222,15 @@ const STR = [
     ]},
   {id:"s2",tt:"Главный → Adventure World → Главный",sub:"Замок утром, Frozen днём. 2 перехода",em:"🏰→🎬→🏰",
     bl:[
-      {lb:"Старт в Главном парке",tm:"9:30–12:30",pk:"d",ic:"🌅",rd:["Big Thunder Mountain","Phantom Manor","Pirates of the Caribbean","Buzz Lightyear Laser Blast"],nt:"Big Thunder — топ Premier Access, брать утром. Phantom Manor — 5 звёзд"},
+      {lb:"Старт в Главном парке",tm:"9:30–12:30",pk:"d",ic:"🌅",rd:["Big Thunder Mountain","Phantom Manor","Pirates of the Caribbean","Buzz Lightyear Laser Blast"],nt:"Big Thunder — топ по быстрому проходу, брать утром. Phantom Manor — 5 звёзд"},
       {lb:"Переход",tm:"12:30–12:45",pk:"x",ic:"🚶",rd:[],nt:"Обед в Adventure World"},
-      {lb:"День в Adventure World",tm:"13:00–18:00",pk:"s",ic:"☀️",rd:["Frozen Ever After","Crush's Coaster","Ratatouille","Avengers Assemble","Spider-Man W.E.B."],nt:"Frozen, Crush's, Ratatouille — топ Premier Access. Брать именно в этом порядке"},
+      {lb:"День в Adventure World",tm:"13:00–18:00",pk:"s",ic:"☀️",rd:["Frozen Ever After","Crush's Coaster","Ratatouille","Avengers Assemble","Spider-Man W.E.B."],nt:"Frozen, Crush's, Ratatouille — топ по быстрому проходу. Брать именно в этом порядке"},
       {lb:"Назад",tm:"18:00–18:15",pk:"x",ic:"🚶",rd:[],nt:"Последний переход"},
       {lb:"Вечер в Главном парке",tm:"18:15–22:40",pk:"d",ic:"🌙",rd:["Peter Pan's Flight","Indiana Jones","Hyperspace Mountain","Star Tours"],nt:"Peter Pan и Hyperspace короче вечером. Фейерверк ~22:30"},
     ]},
   {id:"s3",tt:"Только Главный парк",sub:"Без спешки, повторы любимых",em:"🏰",
     bl:[
-      {lb:"Старт",tm:"9:30–11:00",pk:"d",ic:"🌅",rd:["Big Thunder Mountain","Phantom Manor","Buzz Lightyear Laser Blast"],nt:"Big Thunder (топ Premier Access) и Phantom Manor первыми — утром короче"},
+      {lb:"Старт",tm:"9:30–11:00",pk:"d",ic:"🌅",rd:["Big Thunder Mountain","Phantom Manor","Buzz Lightyear Laser Blast"],nt:"Big Thunder (топ по быстрому проходу) и Phantom Manor первыми — утром короче"},
       {lb:"Утро",tm:"11:00–13:00",pk:"d",ic:"☀️",rd:["Hyperspace Mountain","Pirates of the Caribbean","Indiana Jones"],nt:"Популярные аттракционы пока терпимо"},
       {lb:"Обед+лёгкие",tm:"13:00–16:00",pk:"d",ic:"🍕",rd:["It's a Small World","Star Tours","Autopia"],nt:"Пик! Обед, шоу, лёгкие аттракционы"},
       {lb:"Вечер",tm:"16:00–20:00",pk:"d",ic:"🌆",rd:["Indiana Jones","Orbitron"],nt:"Повтор любимых во время парада"},
@@ -239,7 +238,7 @@ const STR = [
     ]},
   {id:"s4",tt:"Только Adventure World",sub:"Frozen, Crush's, Ratatouille",em:"🎬",
     bl:[
-      {lb:"Старт",tm:"9:30–11:00",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Именно в этом порядке — топ Premier Access, очереди быстро растут"},
+      {lb:"Старт",tm:"9:30–11:00",pk:"s",ic:"🌅",rd:["Frozen Ever After","Crush's Coaster","Ratatouille"],nt:"Именно в этом порядке — топ по быстрому проходу, очереди быстро растут"},
       {lb:"Утро",tm:"11:00–13:00",pk:"s",ic:"☀️",rd:["Avengers Assemble","Tower of Terror"],nt:"Avengers Campus + Tower of Terror (Single Rider ускоряет)"},
       {lb:"Обед",tm:"13:00–15:00",pk:"s",ic:"🍕",rd:["Spider-Man W.E.B.","Cars Road Trip"],nt:"Пик. Обед, фото, лёгкие аттракционы"},
       {lb:"Второй раунд",tm:"15:00–18:00",pk:"s",ic:"🌆",rd:["Toy Soldiers","RC Racer"],nt:"Лёгкие + повтор"},
@@ -266,7 +265,7 @@ const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Par
 const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:m.ap*wm(h));
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
-const paidCompact=p=>p&&p.available&&p.price?`Premier ${esc(p.price.formatted)}`:"";
+const paidCompact=p=>p&&p.available&&p.price?`Быстрый проход ${esc(p.price.formatted)}`:p&&p.available?"Быстрый проход":"";
 const paidFull=p=>{
   const label=paidCompact(p);
   if(!label)return "";
@@ -779,14 +778,13 @@ function draw(){
       const slv=singleRide(n,m);
       const paid=paidRide(n,m);
       const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
-      const paidBadge=paidCompact(paid)?`<span class="lv tg-pa">${paidCompact(paid)}</span>`:'';
       let badge='<span style="font-size:9px;color:var(--mu)">—</span>';
       if(S.ld)badge='<span style="font-size:9px;color:var(--mu)">⏳</span>';
       else if(lv){
         if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       }
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${hasPremierAccess(n,m)?'<div class="tags"><span class="tg-p">Premier Access</span></div>':''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}${paidBadge}</div></div>`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
@@ -830,7 +828,7 @@ function draw(){
       if(b.rd.length){h+=`<div class="bl-rd">`;b.rd.forEach(r=>{const rd=R[r];if(!rd)return;const tc=T[rd.t];h+=`<span class="bl-tg" style="background:${tc.bg};color:${tc.tx}">${rd.i} ${esc(r)}</span>`});h+=`</div>`}
       h+=`<div class="bl-nt">${b.nt}</div></div>`;
     });
-    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Frozen, Indiana, Avengers. -30–60 мин<br><br><b>Premier Access</b> — смотрите live-цену в карточках. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
+    h+=`<div class="tips"><h3>💡 Советы</h3><p><b>Не бегайте между парками!</b> 1 переход=ок, 2=терпимо, 3+=час потерян<br><br><b>Single Rider</b> — Crush's, Ratatouille, Frozen, Indiana, Avengers. -30–60 мин<br><br><b>Быстрый проход</b> — смотрите live-цену в карточках. Приоритет: Crush's, Ratatouille, Frozen, Big Thunder<br><br><b>Парад ~17:30</b> — очереди -30–50%</p></div>`;
   }
 
   // ═══ MAP ═══
@@ -886,15 +884,14 @@ function draw(){
       else if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
       else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">Single ${slv.wait_time} мин</span>`:'';
-      const paidBadge=paidFull(paid)?`<span class="lv tg-pa">${paidFull(paid)}</span>`:'';
-      const fastTag=hasPremierAccess(n,m)?'<span class="tg-p">Premier Access</span>':'';
+      const fastTag=hasPremierAccess(n,m)?`<span class="tg-p">${paidFull(paid)}</span>`:'';
       h+=`<div class="mv-popup" id="mv-popup" data-mx="${c.mx}" data-my="${c.my}">
         <span class="ar"></span>
         <button class="cl" data-close="1">×</button>
         <div class="tp"><span class="em">${m.i}</span><div style="flex:1;min-width:0"><div class="nm">${esc(n)}</div></div></div>
         <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>
         <div class="rw"><span class="tier t-${m.t}">${T[m.t].stars}</span>${fastTag}</div>
-        <div class="rw" style="margin-top:5px">${badge}${singleBadge}${paidBadge}</div>
+        <div class="rw" style="margin-top:5px">${badge}${singleBadge}</div>
         <div class="bh">${baseText(m,lv)}</div>
       </div>`;
     }
