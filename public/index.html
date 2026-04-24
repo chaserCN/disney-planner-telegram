@@ -260,7 +260,7 @@ const singleRide=(n,m)=>{
   return m.srid?S.live?.[m.srid]:null;
 };
 const paidRide=(n,m)=>liveRide(n,m)?.paid||null;
-const hasPremierAccess=(n,m)=>!!paidCompact(paidRide(n,m))||!!m.pa;
+const hasPremierAccess=(n,m)=>!!paidCompact(paidRide(n,m));
 const dayLabel=t=>({weekday:"Будни",weekend:"Выходные",holiday:"Праздники",peak:"Выходные+праздники"}[t]||"Будни");
 const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(new Date()));
 const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
