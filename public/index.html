@@ -780,7 +780,8 @@ function draw(){
         if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       }
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${badge}${singleBadge}</div></div>`;
+      const waitBadges=S.rsort==="waitSingle"?`${singleBadge}${badge}`:`${badge}${singleBadge}`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${waitBadges}</div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
