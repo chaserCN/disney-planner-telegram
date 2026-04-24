@@ -88,6 +88,7 @@
   .cmp-low { color:var(--mu); }
   .tg-s { background:#164e63; color:#a5f3fc; }
   .tg-p { color:#fbbf24; font-weight:700; font-size:11px; }
+  .tg-p.so { color:#94a3b8; font-weight:600; }
 
   /* Legend */
   .lgd { padding:9px; background:var(--cd); border-radius:8px; display:flex; gap:9px; flex-wrap:wrap; font-size:11px; color:var(--mu); margin-top:6px; }
@@ -104,6 +105,9 @@
   .hm-st.st { color:var(--st); border-bottom:1px solid rgba(96,165,250,.15); }
   .hm-r { display:flex; align-items:center; gap:1px; padding:1px 0; }
   .hm-r .l { width:124px; font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+  .hm-r .l .nm { display:block; overflow:hidden; text-overflow:ellipsis; }
+  .hm-r .l .pr { display:block; font-size:10px; color:#fbbf24; font-weight:700; line-height:1.1; }
+  .hm-r .l .pr.so { color:#94a3b8; font-weight:600; }
   .hm-r .c { flex:1; height:30px; min-width:24px; border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; line-height:1; }
   .hm-r .c.na { background:#334155 !important; color:#94a3b8 !important; }
   .hm-ins { margin-top:8px; padding:11px; background:var(--cd); border-radius:10px; font-size:12px; color:var(--mu); line-height:1.6; }
@@ -258,12 +262,18 @@ const singleRide=(n,m)=>{
   return m.srid?S.live?.[m.srid]:null;
 };
 const paidRide=(n,m)=>liveRide(n,m)?.paid||null;
-const hasPremierAccess=(n,m)=>!!paidCompact(paidRide(n,m));
+const hasPremierAccess=(n,m)=>{const p=paidRide(n,m);return !!p&&(p.available||!!p.price);};
 const dayLabel=t=>({weekday:"Будни",weekend:"Выходные",holiday:"Праздники",peak:"Выходные+праздники"}[t]||"Будни");
 const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(new Date()));
 const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
-const paidCompact=p=>p&&p.available&&p.price?`Быстрый проход ${esc(p.price.formatted)}`:p&&p.available?"Быстрый проход":"";
+const paidCompact=p=>{
+  if(!p)return"";
+  if(p.available&&p.price)return`Быстрый проход ${esc(p.price.formatted)}`;
+  if(p.available)return"Быстрый проход";
+  if(p.price)return`Быстрый проход ${esc(p.price.formatted)} · продано`;
+  return"";
+};
 const paidFull=p=>paidCompact(p);
 const singleWaitText=w=>w===0?'?':`${w}`;
 const minuteWord=n=>{const m=Math.abs(n)%100,d=m%10; if(m>10&&m<20)return"минут"; if(d===1)return"минута"; if(d>=2&&d<=4)return"минуты"; return"минут";};
@@ -781,7 +791,7 @@ function draw(){
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       }
       const waitBadges=S.rsort==="waitSingle"?`${singleBadge}${badge}`:`${badge}${singleBadge}`;
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${waitBadges}</div></div>`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p${paid&&!paid.available?' so':''}">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${waitBadges}</div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
@@ -803,7 +813,13 @@ function draw(){
       const rides=bp(k);if(!rides.length)return;
       h+=`<div class="hm-st ${pk(k)}">${P[k].e} ${P[k].n}</div>`;
       rides.forEach(([n,m])=>{
-        h+=`<div class="hm-r"><div class="l">${m.i} ${esc(n)}</div>`;
+        const paid=paidRide(n,m);
+        let priceTag='';
+        if(paid&&paid.price){
+          if(paid.available)priceTag=`<span class="pr">⚡ ${esc(paid.price.formatted)}</span>`;
+          else priceTag=`<span class="pr so">⚡ ${esc(paid.price.formatted)} · продано</span>`;
+        }
+        h+=`<div class="hm-r"><div class="l"><span class="nm">${m.i} ${esc(n)}</span>${priceTag}</div>`;
         for(let i=0;i<14;i++){const hr=i+9,b=baseRide(m,hr);if(b&&b.sample_count>0){const v=b.median,sv=b.single_sample_count>0?b.single_median:null,txt=sv!==null?`${v}/${sv}`:`${v}`;h+=`<div class="c" style="background:${wc(v)};color:${v>40?'#fff':'#0f172a'}">${txt}</div>`}else{h+=`<div class="c na">?</div>`}}
         h+=`</div>`;
       });
@@ -881,7 +897,7 @@ function draw(){
       else if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
       else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
-      const fastTag=hasPremierAccess(n,m)?`<span class="tg-p">${paidFull(paid)}</span>`:'';
+      const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
       h+=`<div class="mv-popup" id="mv-popup" data-mx="${c.mx}" data-my="${c.my}">
         <span class="ar"></span>
         <button class="cl" data-close="1">×</button>
