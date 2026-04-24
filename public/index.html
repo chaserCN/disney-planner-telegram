@@ -356,7 +356,17 @@ async function fetchLive(){
     fetch("/api/baseline").then(r=>r.ok?r.json():null).then(base=>{
       if(base)set({base,baseType:base.day_type});
     }).catch(()=>{});
+    fetchWeather();
   }catch{set({err:"Live недоступны",ld:false})}
+}
+
+async function fetchWeather(){
+  try{
+    const r=await fetch("/api/weather");
+    if(!r.ok)return;
+    const w=await r.json();
+    if(w&&(w.code!=null||w.temp!=null))set({weather:w});
+  }catch{}
 }
 
 // ── Pull to refresh ────────────────────────────────────────────────────────
