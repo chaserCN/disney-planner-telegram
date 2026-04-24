@@ -105,6 +105,7 @@
   .hm-r { display:flex; align-items:center; gap:1px; padding:1px 0; }
   .hm-r .l { width:124px; font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
   .hm-r .c { flex:1; height:30px; min-width:24px; border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; line-height:1; }
+  .hm-r .c.na { background:#334155 !important; color:#94a3b8 !important; }
   .hm-ins { margin-top:8px; padding:11px; background:var(--cd); border-radius:10px; font-size:12px; color:var(--mu); line-height:1.6; }
 
   /* Plan */
@@ -804,7 +805,7 @@ function draw(){
       h+=`<div class="hm-st ${pk(k)}">${P[k].e} ${P[k].n}</div>`;
       rides.forEach(([n,m])=>{
         h+=`<div class="hm-r"><div class="l">${m.i} ${esc(n)}</div>`;
-        for(let i=0;i<14;i++){const hr=i+9,b=baseRide(m,hr),v=b&&b.sample_count>0?b.median:fallbackWait(m,hr),sv=b&&b.single_sample_count>0?b.single_median:null,txt=sv!==null?`${v}/${sv}`:`${v}`;h+=`<div class="c" style="background:${wc(v)};color:${v>40?'#fff':'#0f172a'}">${txt}</div>`}
+        for(let i=0;i<14;i++){const hr=i+9,b=baseRide(m,hr);if(b&&b.sample_count>0){const v=b.median,sv=b.single_sample_count>0?b.single_median:null,txt=sv!==null?`${v}/${sv}`:`${v}`;h+=`<div class="c" style="background:${wc(v)};color:${v>40?'#fff':'#0f172a'}">${txt}</div>`}else{h+=`<div class="c na">?</div>`}}
         h+=`</div>`;
       });
     });
