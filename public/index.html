@@ -805,8 +805,8 @@ function draw(){
     ?`<button class="sub-btn on" onclick="toggleSubscription()" title="Уведомления включены">🔔</button>`
     :`<button class="sub-btn" onclick="toggleSubscription()" title="Включить уведомления">🔕</button>`);
   const wx=S.weather;
-  const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"погода загружается";
-  const wxHtml=`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx?wx.code:null)}${wx&&Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`;
+  const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"";
+  const wxHtml=wx?`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx.code)}${Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`:"";
 
   let h=`<div class="hdr">
     <div class="hdr-l"><h1>Disneyland Paris</h1>${wxHtml}</div>
