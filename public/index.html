@@ -266,7 +266,7 @@ const parisHour=()=>Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Par
 const baseRide=(m,h=parisHour())=>S.base?.rides?.[m.id]?.[h];
 const fallbackWait=(m,h=parisHour())=>Math.round(m.bh.includes(h)?m.ap*wm(h)*.5:m.ap*wm(h));
 const timeHHMM=s=>s?new Intl.DateTimeFormat("ru-RU",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit"}).format(new Date(s)):"";
-const paidCompact=p=>p&&p.state==="AVAILABLE"&&p.price?`Premier ${esc(p.price.formatted)}`:"";
+const paidCompact=p=>p&&p.available&&p.price?`Premier ${esc(p.price.formatted)}`:"";
 const paidFull=p=>{
   const label=paidCompact(p);
   if(!label)return "";

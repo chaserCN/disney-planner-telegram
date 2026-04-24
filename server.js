@@ -545,6 +545,7 @@ function normalizeThemeParksLive(data) {
         wait_time: Number.isFinite(single.waitTime) ? single.waitTime : null
       } : null,
       paid: paid ? {
+        available: paid.state === "AVAILABLE",
         state: paid.state || null,
         price: paid.price || null,
         returnStart: paid.returnStart || null,
@@ -973,7 +974,7 @@ function startBot() {
           r.wait_time <= 40 ? `🟡 ${r.wait_time} мин` :
           `🔴 ${r.wait_time} мин`;
         const single = r.single && r.single.is_open ? ` · Single ${r.single.wait_time} мин` : "";
-        const paid = r.paid && r.paid.price && r.paid.state === "AVAILABLE" ? ` · Premier ${r.paid.price.formatted}` : "";
+        const paid = r.paid && r.paid.available && r.paid.price ? ` · Premier ${r.paid.price.formatted}` : "";
         text += `${status}${single}${paid}  ${name}\n`;
       });
       text += `\n_Данные: ${live.source}_`;
