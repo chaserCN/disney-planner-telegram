@@ -768,7 +768,7 @@ function draw(){
   // ═══ RANKING ═══
   if(S.tab==="ranking"){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
-    h+=`<div class="flt">${[["tier","По рейтингу"],["wait","По времени"],["waitSingle","По одиночной очереди"]].map(([k,l])=>`<button class="pl ${S.rsort===k?"on":""}" onclick="set({rsort:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${[["tier","По рейтингу"],["wait","По времени"],["waitSingle","В одиночку"]].map(([k,l])=>`<button class="pl ${S.rsort===k?"on":""}" onclick="set({rsort:'${k}'})">${l}</button>`).join("")}</div>`;
     const renderCard=([n,m])=>{
       const lv=liveRide(n,m);
       const slv=singleRide(n,m);
@@ -781,7 +781,7 @@ function draw(){
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
       }
       const waitBadges=S.rsort==="waitSingle"?`${singleBadge}${badge}`:`${badge}${singleBadge}`;
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${waitBadges}</div></div>`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="rn">${esc(n)}</div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>${hasPremierAccess(n,m)?`<div class="tags"><span class="tg-p">${paidCompact(paid)}</span></div>`:''}<div class="bh">${baseText(m,lv)}</div></div><div class="rt">${`<span class="tier t-${m.t}">${T[m.t].stars}</span>`}${waitBadges}</div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
@@ -886,7 +886,7 @@ function draw(){
         <span class="ar"></span>
         <button class="cl" data-close="1">×</button>
         <div class="tp"><span class="em">${m.i}</span><div style="flex:1;min-width:0"><div class="nm">${esc(n)}</div></div></div>
-        <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span><span>·</span><span>пик~${m.ap} мин</span></div>
+        <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>
         <div class="rw"><span class="tier t-${m.t}">${T[m.t].stars}</span>${fastTag}</div>
         <div class="rw" style="margin-top:5px">${badge}${singleBadge}</div>
         <div class="bh">${baseText(m,lv)}</div>
