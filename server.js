@@ -897,7 +897,7 @@ function currentCollectIntervalMinutes(paris) {
 
 // Use a point between Disneyland Park and Walt Disney Studios so Open-Meteo
 // resolves to a grid cell that better represents the full resort.
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8699&longitude=2.7776&current=temperature_2m,weather_code,precipitation&daily=sunrise,sunset&timezone=Europe%2FParis";
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8699&longitude=2.7776&current=temperature_2m,weather_code,precipitation&hourly=temperature_2m,precipitation_probability,weather_code&daily=sunrise,sunset,temperature_2m_min,temperature_2m_max,precipitation_probability_max&timezone=Europe%2FParis";
 const WEATHER_TTL_MS = 10 * 60 * 1000;
 let weatherCache = { data: null, fetchedAt: 0 };
 
@@ -908,16 +908,65 @@ async function getWeather() {
   const r = await fetch(WEATHER_URL);
   if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
   const j = await r.json();
+  const paris = getParisDateParts(new Date());
   const cur = j.current || {};
   const daily = j.daily || {};
+  const hourly = j.hourly || {};
+  const daysByDate = new Map();
+
+  if (Array.isArray(daily.time)) {
+    for (let i = 0; i < daily.time.length; i += 1) {
+      const date = daily.time[i];
+      if (typeof date !== "string") continue;
+      daysByDate.set(date, {
+        date,
+        sunrise: Array.isArray(daily.sunrise) ? daily.sunrise[i] || null : null,
+        sunset: Array.isArray(daily.sunset) ? daily.sunset[i] || null : null,
+        temp_min: Array.isArray(daily.temperature_2m_min) && Number.isFinite(daily.temperature_2m_min[i]) ? daily.temperature_2m_min[i] : null,
+        temp_max: Array.isArray(daily.temperature_2m_max) && Number.isFinite(daily.temperature_2m_max[i]) ? daily.temperature_2m_max[i] : null,
+        precipitation_probability_max: Array.isArray(daily.precipitation_probability_max) && Number.isFinite(daily.precipitation_probability_max[i]) ? daily.precipitation_probability_max[i] : null,
+        hours: []
+      });
+    }
+  }
+
+  if (Array.isArray(hourly.time)) {
+    for (let i = 0; i < hourly.time.length; i += 1) {
+      const time = hourly.time[i];
+      if (typeof time !== "string") continue;
+      const date = time.slice(0, 10);
+      const day = daysByDate.get(date);
+      if (!day) continue;
+      day.hours.push({
+        time,
+        temp: Number.isFinite(hourly.temperature_2m?.[i]) ? hourly.temperature_2m[i] : null,
+        precipitation_probability: Number.isFinite(hourly.precipitation_probability?.[i]) ? hourly.precipitation_probability[i] : null,
+        code: Number.isFinite(hourly.weather_code?.[i]) ? hourly.weather_code[i] : null
+      });
+    }
+  }
+
+  const days = [...daysByDate.values()].filter(day => day.date >= paris.localDate).slice(0, 7);
+  const todayDay = days.find(day => day.date === paris.localDate) || days[0] || {
+    date: paris.localDate,
+    sunrise: null,
+    sunset: null,
+    temp_min: null,
+    temp_max: null,
+    precipitation_probability_max: null,
+    hours: []
+  };
+
   weatherCache = {
     data: {
       code: Number.isFinite(cur.weather_code) ? cur.weather_code : null,
       temp: Number.isFinite(cur.temperature_2m) ? cur.temperature_2m : null,
       precipitation: Number.isFinite(cur.precipitation) ? cur.precipitation : null,
       observedAt: cur.time || null,
-      sunrise: Array.isArray(daily.sunrise) ? daily.sunrise[0] || null : null,
-      sunset: Array.isArray(daily.sunset) ? daily.sunset[0] || null : null
+      sunrise: todayDay.sunrise,
+      sunset: todayDay.sunset,
+      today: todayDay,
+      days
     },
     fetchedAt: Date.now()
   };

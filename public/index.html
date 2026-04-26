@@ -53,8 +53,34 @@
   .pl.on { border-color:var(--ac); background:color-mix(in srgb, var(--ac) 15%, transparent); color:var(--ac-tx); }
   .pl.on-d { border-color:var(--dlp); background:rgba(244,114,176,.12); color:var(--dlp); }
   .pl.on-s { border-color:var(--st); background:rgba(96,165,250,.12); color:var(--st); }
+  .wx-btn { display:inline-flex; align-items:baseline; gap:4px; padding:2px 6px; margin:-2px -6px; border:none; border-radius:999px; background:transparent; color:var(--mu); cursor:pointer; font:inherit; flex-shrink:0; user-select:none; white-space:nowrap; }
+  .wx-btn:active { background:rgba(255,255,255,.06); }
   .wx { display:inline-flex; align-items:baseline; gap:4px; padding:0 2px; font-size:15px; line-height:1.1; color:var(--mu); flex-shrink:0; user-select:none; white-space:nowrap; }
   .wx .t { font-size:13px; font-weight:500; }
+  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:20px 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); }
+  .wmc { width:min(520px,100%); max-height:min(80vh,680px); overflow:auto; background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(11,14,24,.98)); border:1px solid var(--bd); border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.55); padding:16px 16px 14px; }
+  .wmh { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .wmtt { font-size:18px; font-weight:800; }
+  .wmsb { font-size:12px; color:var(--mu); margin-top:3px; line-height:1.45; }
+  .wmx { width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.06); color:var(--tx); font-size:22px; line-height:1; cursor:pointer; flex-shrink:0; }
+  .wmbd { display:grid; gap:10px; }
+  .wmnav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:2px; }
+  .wmnav .cap { font-size:14px; font-weight:800; }
+  .wmnav .sub { font-size:11px; color:var(--mu); margin-top:2px; }
+  .wmnav .ctrl { display:flex; gap:6px; }
+  .wmnav button { width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.06); color:var(--tx); font-size:18px; font-weight:800; cursor:pointer; }
+  .wmnav button:disabled { opacity:.35; cursor:default; }
+  .wmsm { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .wmsm .it { padding:10px 11px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(148,163,184,.12); }
+  .wmsm .lb { font-size:11px; font-weight:700; color:var(--mu); text-transform:uppercase; letter-spacing:.04em; }
+  .wmsm .vl { font-size:17px; font-weight:800; margin-top:3px; }
+  .wch { padding:12px; border-radius:14px; background:rgba(255,255,255,.04); border:1px solid rgba(148,163,184,.12); }
+  .wch .tt { font-size:13px; font-weight:800; margin-bottom:8px; }
+  .wch .sb { font-size:11px; color:var(--mu); margin-top:8px; }
+  .wch.wx-cond { padding-top:10px; }
+  @media (max-width:420px) {
+    .wmsm { grid-template-columns:1fr; }
+  }
 
   /* Park section */
   .ps { margin-bottom:14px; }
@@ -295,17 +321,19 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0};
+const weatherLocalParts=s=>{
+  const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s||"");
+  if(!m)return null;
+  return {year:+m[1],month:+m[2],day:+m[3],hour:+m[4],minute:+m[5]};
+};
 const weatherParisHour=s=>{
-  if(!s)return null;
-  const d=new Date(s);
-  if(Number.isNaN(d.getTime()))return null;
-  return Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hour12:false}).format(d));
+  const p=weatherLocalParts(s);
+  return p?p.hour:null;
 };
 const weatherTs=s=>{
-  if(!s)return null;
-  const d=new Date(s);
-  return Number.isNaN(d.getTime())?null:d.getTime();
+  const p=weatherLocalParts(s);
+  return p?Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute):null;
 };
 const isNightWeather=(observedAt, sunrise, sunset)=>{
   const observedTs=weatherTs(observedAt);
@@ -330,6 +358,26 @@ const WX_ICON=(c, observedAt, sunrise, sunset)=>{
   if(c<=86)return"🌨️";
   return"⛈️";
 };
+const WX_SKY_ICON=(c, observedAt, sunrise, sunset)=>{
+  const night=isNightWeather(observedAt, sunrise, sunset);
+  if(c==null)return night?"☁️":"⛅";
+  if(c===0)return night?"🌙":"☀️";
+  if(c===1)return night?"☁️":"🌤️";
+  if(c===2)return"⛅";
+  if(c===3)return"☁️";
+  if(c<=48)return"🌫️";
+  if(c<=86)return"☁️";
+  return"⛈️";
+};
+const WX_CURRENT_ICON=wx=>{
+  if(!wx)return"⛅";
+  if(Number.isFinite(wx.precipitation)&&wx.precipitation>0){
+    if(Number.isFinite(wx.code)&&wx.code>=71&&wx.code<=86)return"🌨️";
+    if(Number.isFinite(wx.code)&&wx.code>=95)return"⛈️";
+    return"🌧️";
+  }
+  return WX_SKY_ICON(wx.code, wx.observedAt, wx.sunrise, wx.sunset);
+};
 const WX_LABEL=c=>{
   if(c==null)return"погода";
   if(c===0)return"ясно";
@@ -342,6 +390,204 @@ const WX_LABEL=c=>{
   if(c<=86)return"снег";
   return"гроза";
 };
+const weatherHourLabel=s=>{
+  const m=/T(\d{2}):(\d{2})/.exec(s||"");
+  return m?`${m[1]}:${m[2]}`:"";
+};
+const weatherHourShort=s=>{
+  const m=/T(\d{2}):/.exec(s||"");
+  return m?m[1]:"";
+};
+function tzOffsetMinutes(timeZone,date){
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone,timeZoneName:"shortOffset",hour:"2-digit"}).formatToParts(date);
+  const tz=parts.find(p=>p.type==="timeZoneName")?.value||"GMT";
+  const m=/GMT([+-])(\d{1,2})(?::?(\d{2}))?/.exec(tz);
+  if(!m)return 0;
+  const sign=m[1]==="-"?-1:1;
+  return sign*((+m[2])*60+(+(m[3]||0)));
+}
+function weatherUtcDate(s){
+  const p=weatherLocalParts(s);
+  if(!p)return null;
+  const guessUtc=Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute);
+  const offset=tzOffsetMinutes("Europe/Paris",new Date(guessUtc));
+  return new Date(guessUtc-offset*60000);
+}
+function weatherUserTimeLabel(s){
+  const d=weatherUtcDate(s);
+  if(!d)return "";
+  return new Intl.DateTimeFormat(undefined,{hour:"2-digit",minute:"2-digit"}).format(d);
+}
+function weatherDateLabel(dateStr, offset){
+  if(offset===0)return "Сегодня";
+  const d=new Date(`${dateStr}T12:00:00`);
+  const dayMonth=new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"short"}).format(d);
+  const weekday=new Intl.DateTimeFormat("ru-RU",{weekday:"long"}).format(d);
+  return `${dayMonth} - ${weekday.charAt(0).toUpperCase()+weekday.slice(1)}`;
+}
+const weatherObservedHour=s=>{
+  const h=weatherParisHour(s);
+  return Number.isFinite(h)?String(h).padStart(2,"0"):null;
+};
+function openWeatherModal(e){
+  if(e)e.stopPropagation();
+  if(!S.weather||!Array.isArray(S.weather.days)||!S.weather.days.length)return;
+  set({weatherOpen:true,weatherDayIndex:0});
+}
+function closeWeatherModal(e){
+  if(e)e.stopPropagation();
+  if(!S.weatherOpen)return;
+  set({weatherOpen:false});
+}
+function weatherSetDay(delta,e){
+  if(e)e.stopPropagation();
+  const days=Array.isArray(S.weather?.days)?S.weather.days:[];
+  if(!days.length)return;
+  const next=Math.max(0,Math.min(days.length-1,S.weatherDayIndex+delta));
+  if(next===S.weatherDayIndex)return;
+  set({weatherDayIndex:next});
+}
+function weatherSummaryRange(min,max){
+  if(Number.isFinite(min)&&Number.isFinite(max))return `${Math.round(min)}..${Math.round(max)}°`;
+  if(Number.isFinite(min))return `${Math.round(min)}°`;
+  if(Number.isFinite(max))return `${Math.round(max)}°`;
+  return "—";
+}
+function renderTempChart(hours){
+  const vals=hours.map(h=>h.temp).filter(Number.isFinite);
+  if(!vals.length)return "";
+  const width=440, height=164, padX=12, padTop=28, padBottom=30;
+  let min=Math.floor(Math.min(...vals)-1), max=Math.ceil(Math.max(...vals)+1);
+  if(min===max){min-=1;max+=1}
+  const range=max-min;
+  const minVal=Math.min(...vals), maxVal=Math.max(...vals);
+  const minIndexes=[], maxIndexes=[];
+  hours.forEach((h,i)=>{
+    if(Number.isFinite(h.temp)&&h.temp===minVal)minIndexes.push(i);
+    if(Number.isFinite(h.temp)&&h.temp===maxVal)maxIndexes.push(i);
+  });
+  const labelIndexes=new Set([0,hours.length-1]);
+  hours.forEach((_,i)=>{ if(i%3===0)labelIndexes.add(i); });
+  if(minIndexes.length)labelIndexes.add(minIndexes[Math.floor(minIndexes.length/2)]);
+  if(maxIndexes.length)labelIndexes.add(maxIndexes[Math.floor(maxIndexes.length/2)]);
+  const points=hours.map((h,i)=>{
+    const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
+    const y=padTop+((max-(Number.isFinite(h.temp)?h.temp:min))*(height-padTop-padBottom))/range;
+    return {x,y,v:h.temp,t:h.time};
+  });
+  const line=points.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const xLabelIndexes=hours.map((_,i)=>i).filter(i=>i%3===0||i===hours.length-1);
+  const vGuides=xLabelIndexes.map(i=>{
+    const p=points[i];
+    return `<line x1="${p.x.toFixed(1)}" y1="${padTop}" x2="${p.x.toFixed(1)}" y2="${(height-padBottom).toFixed(1)}" stroke="rgba(148,163,184,.10)" stroke-width="1"/>`;
+  }).join("");
+  const labels=hours.filter((_,i)=>i%3===0||i===hours.length-1).map((h,i)=>{
+    const p=points[hours.indexOf(h)];
+    return `<text x="${p.x.toFixed(1)}" y="${height-8}" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700">${weatherHourShort(h.time)}</text>`;
+  }).join("");
+  const dots=points.map((p,i)=>{
+    const isMin=minIndexes.includes(i);
+    const isMax=maxIndexes.includes(i);
+    const showLabel=labelIndexes.has(i);
+    const labelY=Math.max(16,p.y-10);
+    const labelColor=isMin?"#93c5fd":isMax?"#fca5a5":"#e2e8f0";
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isMin||isMax?4.2:3.4}" fill="#f8fafc"/>${showLabel?`<text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${labelColor}" font-size="12" font-weight="800">${Math.round(p.v)}°</text>`:""}`;
+  }).join("");
+  const grid=[0,.5,1].map(k=>{
+    const y=padTop+k*(height-padTop-padBottom);
+    return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${width-padX}" y2="${y.toFixed(1)}" stroke="rgba(148,163,184,.18)" stroke-width="1"/>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="164" style="display:block;overflow:visible" aria-label="Температура по часам">${grid}${vGuides}<polyline points="${line}" fill="none" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${labels}</svg>`;
+}
+function renderConditionsChart(hours, observedAt){
+  if(!hours.length)return "";
+  const width=440, height=76, padX=12, padTop=8, padBottom=24;
+  const xLabelIndexes=hours.map((_,i)=>i).filter(i=>i%3===0||i===hours.length-1);
+  const observedHour=weatherObservedHour(observedAt);
+  const vGuides=xLabelIndexes.map(i=>{
+    const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
+    return `<line x1="${x.toFixed(1)}" y1="${padTop}" x2="${x.toFixed(1)}" y2="${(height-padBottom).toFixed(1)}" stroke="rgba(148,163,184,.10)" stroke-width="1"/>`;
+  }).join("");
+  const labels=xLabelIndexes.map(i=>{
+    const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
+    return `<text x="${x.toFixed(1)}" y="${height-6}" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700">${weatherHourShort(hours[i].time)}</text>`;
+  }).join("");
+  const icons=hours.map((h,i)=>{
+    const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
+    const hh=weatherHourShort(h.time);
+    const active=observedHour===hh;
+    return `<text x="${x.toFixed(1)}" y="36" text-anchor="middle" font-size="${active?18:16}" fill="${active?'#e2e8f0':'#94a3b8'}">${WX_SKY_ICON(h.code,h.time,h.sunrise,h.sunset)}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="76" style="display:block" aria-label="Условия по часам">${vGuides}${icons}${labels}</svg>`;
+}
+function renderPrecipChart(hours){
+  let vals=hours.map(h=>h.precipitation_probability).filter(Number.isFinite);
+  if(!vals.length)return "";
+  const chartHours=hours;
+  vals=chartHours.map(h=>h.precipitation_probability).filter(Number.isFinite);
+  const width=440, height=144, padX=12, padTop=14, padBottom=30, chartH=height-padTop-padBottom;
+  const plotW=width-padX*2;
+  const barW=Math.max(6,Math.min(12,plotW/Math.max(1,chartHours.length)-4));
+  const xLabelIndexes=chartHours.map((_,i)=>i).filter(i=>i%3===0||i===chartHours.length-1);
+  const bars=chartHours.map((h,i)=>{
+    const v=Number.isFinite(h.precipitation_probability)?h.precipitation_probability:0;
+    const x=padX+(i*plotW)/Math.max(1,chartHours.length-1)-barW/2;
+    const hPx=(v/100)*chartH;
+    return `<rect x="${x.toFixed(1)}" y="${(padTop+chartH-hPx).toFixed(1)}" width="${barW.toFixed(1)}" height="${hPx.toFixed(1)}" rx="3" fill="rgba(96,165,250,.88)"/>`;
+  }).join("");
+  const vGuides=xLabelIndexes.map(i=>{
+    const x=padX+(i*plotW)/Math.max(1,chartHours.length-1);
+    return `<line x1="${x.toFixed(1)}" y1="${padTop}" x2="${x.toFixed(1)}" y2="${(height-padBottom).toFixed(1)}" stroke="rgba(148,163,184,.10)" stroke-width="1"/>`;
+  }).join("");
+  const topLabels=xLabelIndexes.map(i=>{
+    const h=chartHours[i];
+    const x=padX+(i*plotW)/Math.max(1,chartHours.length-1);
+    const v=Number.isFinite(h.precipitation_probability)?Math.round(h.precipitation_probability):0;
+    return `<text x="${x.toFixed(1)}" y="12" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="800">${v}%</text>`;
+  }).join("");
+  const labels=chartHours.filter((_,i)=>i%3===0||i===chartHours.length-1).map(h=>{
+    const x=padX+(chartHours.indexOf(h)*plotW)/Math.max(1,chartHours.length-1);
+    return `<text x="${x.toFixed(1)}" y="${height-8}" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700">${weatherHourShort(h.time)}</text>`;
+  }).join("");
+  const grid=[0,25,50,75,100].map(v=>{
+    const y=padTop+chartH-(v/100)*chartH;
+    return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${width-padX}" y2="${y.toFixed(1)}" stroke="rgba(148,163,184,.18)" stroke-width="1"/>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="144" style="display:block" aria-label="Вероятность осадков по часам">${grid}${vGuides}${topLabels}${bars}${labels}</svg>`;
+}
+function renderWeatherModal(){
+  const wx=S.weather;
+  const days=Array.isArray(wx?.days)?wx.days:[];
+  const idx=Math.max(0,Math.min(days.length-1,S.weatherDayIndex||0));
+  const day=days[idx]||wx?.today||null;
+  const hours=Array.isArray(day?.hours)?day.hours:[];
+  if(!S.weatherOpen||!wx||!day||!hours.length)return "";
+  return `<div class="wmo" onclick="closeWeatherModal()">
+    <div class="wmc" onclick="event.stopPropagation()">
+      <div class="wmh">
+        <div>
+          <div class="wmtt">Погода сегодня</div>
+          <div class="wmsb">Disneyland Paris · ${esc(day.date || "")}${idx===0&&weatherUserTimeLabel(wx.observedAt)?` · обновлено ${weatherUserTimeLabel(wx.observedAt)}`:""}</div>
+        </div>
+        <button class="wmx" onclick="closeWeatherModal(event)" aria-label="Закрыть">×</button>
+      </div>
+      <div class="wmbd">
+        <div class="wmnav">
+          <div><div class="cap">${weatherDateLabel(day.date, idx)}</div><div class="sub">Прогноз по часам</div></div>
+          <div class="ctrl"><button onclick="weatherSetDay(-1,event)" ${idx===0?"disabled":""} aria-label="Предыдущий день">‹</button><button onclick="weatherSetDay(1,event)" ${idx>=days.length-1?"disabled":""} aria-label="Следующий день">›</button></div>
+        </div>
+        <div class="wmsm">
+          <div class="it"><div class="lb">${idx===0?"Сейчас":"Старт дня"}</div><div class="vl">${idx===0&&Number.isFinite(wx.temp)?`${Math.round(wx.temp)}°`:Number.isFinite(hours[0]?.temp)?`${Math.round(hours[0].temp)}°`:"—"}</div></div>
+          <div class="it"><div class="lb">Диапазон</div><div class="vl">${weatherSummaryRange(day.temp_min,day.temp_max)}</div></div>
+          <div class="it"><div class="lb">Осадки</div><div class="vl">${Number.isFinite(day.precipitation_probability_max)?`${Math.round(day.precipitation_probability_max)}%`:"—"}</div></div>
+        </div>
+        <div class="wch"><div class="tt">Температура по часам</div>${renderTempChart(hours)}</div>
+        <div class="wch wx-cond">${renderConditionsChart(hours, idx===0?wx.observedAt:null)}</div>
+        <div class="wch"><div class="tt">Вероятность осадков</div>${renderPrecipChart(hours)}</div>
+      </div>
+    </div>
+  </div>`;
+}
 const MV = {scale:1,tx:0,ty:0,ready:false};
 let geoMsgTimer = null;
 let userPosTimer = null;
@@ -877,7 +1123,7 @@ function draw(){
     :`<button class="sub-btn" onclick="toggleSubscription()" title="Включить уведомления">🔕</button>`);
   const wx=S.weather;
   const wxTitle=wx?`${WX_LABEL(wx.code)}${Number.isFinite(wx.temp)?`, ${Math.round(wx.temp)}°`:""}`:"";
-  const wxHtml=wx?`<span class="wx" title="${attr(wxTitle)}">${WX_ICON(wx.code, wx.observedAt, wx.sunrise, wx.sunset)}${Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span>`:"";
+  const wxHtml=wx?`<button class="wx-btn" title="${attr(`${wxTitle}. Нажмите для прогноза на сегодня`)}" onclick="openWeatherModal(event)"><span class="wx">${WX_CURRENT_ICON(wx)}${Number.isFinite(wx.temp)?`<span class="t">${Math.round(wx.temp)}°</span>`:""}</span></button>`:"";
 
   let h=`<div class="hdr">
     <div class="hdr-l"><div class="hdr-top"><h1>Disneyland Paris</h1>${wxHtml}</div><div class="live-mini">${S.ld?'Обновляем...':hasLive&&S.upd?`Обновлено ${S.upd.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`:'Live'}</div></div>
@@ -1023,6 +1269,7 @@ function draw(){
     h+=`</div>`;
   }
 
+  h+=renderWeatherModal();
   $.innerHTML=h;
 
   if(S.tab==="map"){
