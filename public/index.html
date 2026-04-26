@@ -1220,21 +1220,40 @@ function initTileMap(){
           startAngle: angle,
           startRotation: TILE_MAP.rotation,
           zoom: TILE_MAP.zoom,
-          anchorLatLng
+          anchorLatLng,
+          mode: null
         };
         if(tileTapStart) tileTapStart.moved = true;
         return;
       }
       if(tileTapStart) tileTapStart.moved = true;
-      const zoomDelta = Math.log2(Math.max(1, dist) / Math.max(1, tilePanStart.pinchDist));
-      const nextZoom = clamp(tilePanStart.zoom + zoomDelta, TILE_MAP.minZoom, TILE_MAP.maxZoom);
-      let nextRotation = tilePanStart.startRotation + (angle - tilePanStart.startAngle);
-      nextRotation = ((nextRotation % 360) + 540) % 360 - 180;
-      if(Math.abs(nextRotation) < ROTATION_SNAP_DEG) nextRotation = 0;
-      TILE_MAP.rotation = nextRotation;
+      if(!tilePanStart.mode){
+        const zoomMag = Math.abs(Math.log2(Math.max(1, dist) / Math.max(1, tilePanStart.pinchDist)));
+        let angDiff = angle - tilePanStart.startAngle;
+        angDiff = ((angDiff % 360) + 540) % 360 - 180;
+        const rotMag = Math.abs(angDiff);
+        const ZOOM_LOCK = 0.04;
+        const ROT_LOCK = 10;
+        if(zoomMag < ZOOM_LOCK && rotMag < ROT_LOCK) return;
+        tilePanStart.mode = (zoomMag / ZOOM_LOCK) >= (rotMag / ROT_LOCK) ? "zoom" : "rotate";
+        tilePanStart.pinchDist = dist;
+        tilePanStart.startAngle = angle;
+        tilePanStart.zoom = TILE_MAP.zoom;
+        tilePanStart.startRotation = TILE_MAP.rotation;
+      }
       const rect = wrap.getBoundingClientRect();
       const screenX = cx - rect.left;
       const screenY = cy - rect.top;
+      let nextZoom = tilePanStart.zoom;
+      if(tilePanStart.mode === "zoom"){
+        const zoomDelta = Math.log2(Math.max(1, dist) / Math.max(1, tilePanStart.pinchDist));
+        nextZoom = clamp(tilePanStart.zoom + zoomDelta, TILE_MAP.minZoom, TILE_MAP.maxZoom);
+      } else {
+        let nextRotation = tilePanStart.startRotation + (angle - tilePanStart.startAngle);
+        nextRotation = ((nextRotation % 360) + 540) % 360 - 180;
+        if(Math.abs(nextRotation) < ROTATION_SNAP_DEG) nextRotation = 0;
+        TILE_MAP.rotation = nextRotation;
+      }
       const local = screenToMapDelta(screenX - wrap.clientWidth / 2, screenY - wrap.clientHeight / 2);
       const anchorWorld = projectLatLng(tilePanStart.anchorLatLng.lat, tilePanStart.anchorLatLng.lng, nextZoom);
       const nextCenterWorldX = anchorWorld.x - local.x;
