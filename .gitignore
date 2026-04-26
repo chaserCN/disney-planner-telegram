@@ -1,5 +1,10 @@
 node_modules/
-data/
+# Runtime/generated data (keep selected config JSON tracked)
+data/*
+!data/ride-coords.json
+!data/tile-crop-bounds.json
+!data/map-default-view.json
+data/tile-backups/
 .claude/
 *.sqlite
 *.sqlite-shm
