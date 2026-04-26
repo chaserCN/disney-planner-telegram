@@ -212,7 +212,15 @@
   .mv-popup.up .ar { bottom:-6px; border-top:none; border-left:none; }
   .mv-popup.down .ar { top:-6px; border-bottom:none; border-right:none; }
 
-  .usr-pt { position:absolute; width:18px; height:18px; border-radius:50%; background:#3b82f6; border:3px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 2px rgba(59,130,246,.35), 0 0 0 8px rgba(59,130,246,.18); }
+  .usr-pt { position:absolute; width:18px; height:18px; border-radius:50%; background:#3b82f6; border:3px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 2px rgba(59,130,246,.35), 0 0 0 8px rgba(59,130,246,.18); animation:usrPulse 1.4s ease-in-out infinite; }
+  .usr-arrow { position:absolute; width:48px; height:48px; transform-origin:50% 50%; pointer-events:none; z-index:6; filter:drop-shadow(0 0 4px rgba(30,64,175,.95)); }
+  .usr-arrow .shaft { stroke:#93c5fd; stroke-width:4.5; stroke-linecap:round; fill:none; }
+  .usr-arrow .head { fill:#93c5fd; opacity:.95; }
+  @keyframes usrPulse {
+    0% { box-shadow:0 0 0 2px rgba(59,130,246,.38), 0 0 0 8px rgba(59,130,246,.18); }
+    50% { box-shadow:0 0 0 3px rgba(59,130,246,.50), 0 0 0 15px rgba(59,130,246,.28); }
+    100% { box-shadow:0 0 0 2px rgba(59,130,246,.38), 0 0 0 8px rgba(59,130,246,.18); }
+  }
 
   /* Pull to refresh */
   .ptr { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--mu); font-weight:700; pointer-events:none; z-index:30; padding-top:var(--safe-top); transition:transform .2s; transform:translateY(-60px); }
@@ -325,7 +333,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null};
 const weatherLocalParts=s=>{
   const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s||"");
   if(!m)return null;
@@ -605,6 +613,12 @@ const TILE_MAP = {
   center: { lat: 48.86979615501914, lng: 2.785484790802002 },
   mounted: false
 };
+const GEO_TEST_OVERRIDE = {
+  enabled: true,
+  lat: 48.865585,
+  lng: 2.778777,
+  heading: 90
+};
 const TILE_POINTERS = new Map();
 let tilePanStart = null;
 let tileRenderRaf = 0;
@@ -612,6 +626,7 @@ let tileSetSeq = 0;
 const LEGACY_GEO_CACHE = new Map();
 let geoMsgTimer = null;
 let userPosTimer = null;
+let headingWatchAttached = false;
 let liveRequest = null;
 let lastLiveFetchAt = 0;
 let autoRefreshTimer = null;
@@ -676,6 +691,40 @@ function clampCenterToCrop(){
   else nextCenterY = clamp(center.y, minCenterY, maxCenterY);
 
   TILE_MAP.center = unprojectWorld(nextCenterX, nextCenterY, z);
+}
+
+function isPointInCropBounds(lat,lng){
+  const crop = S.cropBounds && S.cropBounds.bounds;
+  if(!crop) return true;
+  return lat <= crop.north && lat >= crop.south && lng >= crop.west && lng <= crop.east;
+}
+
+function normalizeHeadingFromEvent(e){
+  if(e && Number.isFinite(e.webkitCompassHeading)) return e.webkitCompassHeading;
+  if(e && Number.isFinite(e.alpha)) return (360 - e.alpha + 360) % 360;
+  return null;
+}
+
+async function startHeadingTracking(){
+  if(headingWatchAttached) return;
+  if(typeof window.DeviceOrientationEvent === "undefined") return;
+  try{
+    if(typeof DeviceOrientationEvent.requestPermission === "function"){
+      const res = await DeviceOrientationEvent.requestPermission();
+      if(res !== "granted") return;
+    }
+  }catch{
+    return;
+  }
+  const onOrientation = e=>{
+    const h = normalizeHeadingFromEvent(e);
+    if(!Number.isFinite(h)) return;
+    set({ userHeading: Math.round(h * 10) / 10 });
+    scheduleTileRender();
+  };
+  window.addEventListener("deviceorientationabsolute", onOrientation, true);
+  window.addEventListener("deviceorientation", onOrientation, true);
+  headingWatchAttached = true;
 }
 
 function mountTileSet(html){
@@ -809,6 +858,21 @@ function renderTileMap(){
     visibleMarkers += 1;
   }
 
+  if(S.userPos && Number.isFinite(S.userPos.lat) && Number.isFinite(S.userPos.lng) && S.userPosAt && Date.now()-S.userPosAt<USER_POS_TTL_MS){
+    const wp = projectLatLng(S.userPos.lat, S.userPos.lng, zoom);
+    const ux = wp.x - topLeftX;
+    const uy = wp.y - topLeftY;
+    if(ux >= -24 && ux <= vw + 24 && uy >= -24 && uy <= vh + 24){
+      if(Number.isFinite(S.userHeading)){
+        overlayHtml += `<svg class="usr-arrow" viewBox="0 0 48 48" style="left:${ux}px;top:${uy}px;transform:translate(-50%,-50%) rotate(${S.userHeading}deg)">
+          <line class="shaft" x1="24" y1="24" x2="24" y2="10"></line>
+          <polygon class="head" points="24,4 18,14 30,14"></polygon>
+        </svg>`;
+      }
+      overlayHtml += `<div class="usr-pt" style="left:${ux}px;top:${uy}px"></div>`;
+    }
+  }
+
   mountTileSet(html);
   overlay.innerHTML = overlayHtml;
   const note = document.getElementById("tm-note");
@@ -829,6 +893,21 @@ function setTileZoom(nextZoom){
   TILE_MAP.zoom = clamp(nextZoom, TILE_MAP.minZoom, TILE_MAP.maxZoom);
   clampCenterToCrop();
   scheduleTileRender();
+}
+
+async function loadDefaultMapView(){
+  try{
+    const r = await fetch("/api/map-default-view");
+    if(!r.ok) return;
+    const parsed = await r.json();
+    const z = Number(parsed && parsed.zoom);
+    const lat = Number(parsed && parsed.center && parsed.center.lat);
+    const lng = Number(parsed && parsed.center && parsed.center.lng);
+    if(!Number.isFinite(z) || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    TILE_MAP.zoom = clamp(z, TILE_MAP.minZoom, TILE_MAP.maxZoom);
+    TILE_MAP.center = { lat, lng };
+    scheduleTileRender();
+  }catch{}
 }
 
 function initTileMap(){
@@ -1220,35 +1299,45 @@ function calibrationProject(lat,lng){
 }
 
 function requestUserLocation(){
+  if(GEO_TEST_OVERRIDE.enabled){
+    const lat = GEO_TEST_OVERRIDE.lat;
+    const lng = GEO_TEST_OVERRIDE.lng;
+    if(!isPointInCropBounds(lat,lng)){
+      set({userPos:null,geoBusy:false});
+      setGeoMsg("Вы вне зоны карты");
+      return;
+    }
+    TILE_MAP.center = { lat, lng };
+    clampCenterToCrop();
+    set({userPos:{lat,lng},userPosAt:Date.now(),userHeading:GEO_TEST_OVERRIDE.heading,geoBusy:false});
+    setGeoMsg("Тестовый режим геолокации");
+    if(userPosTimer)clearTimeout(userPosTimer);
+    userPosTimer=setTimeout(()=>{userPosTimer=null;set({userPos:null,userPosAt:null,userHeading:null})},USER_POS_TTL_MS);
+    scheduleTileRender();
+    return;
+  }
   if(!navigator.geolocation){
     alert("Геолокация недоступна");
     return;
   }
   set({geoBusy:true,geoMsg:null});
   navigator.geolocation.getCurrentPosition(pos=>{
-    const projected=calibrationProject(pos.coords.latitude,pos.coords.longitude);
-    if(!projected){
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    if(!isPointInCropBounds(lat,lng)){
       set({userPos:null,geoBusy:false});
       setGeoMsg("Вы вне зоны карты");
       return;
     }
-    if(projected.mx<0||projected.mx>100||projected.my<0||projected.my>100){
-      set({userPos:null,geoBusy:false});
-      setGeoMsg("Вы вне зоны карты");
-      return;
-    }
-    set({userPos:projected,userPosAt:Date.now(),geoBusy:false});
+    TILE_MAP.center = { lat, lng };
+    clampCenterToCrop();
+    const gpsHeading = Number.isFinite(pos.coords.heading) ? pos.coords.heading : null;
+    set({userPos:{lat,lng},userPosAt:Date.now(),userHeading:gpsHeading,geoBusy:false});
     setGeoMsg(null);
+    startHeadingTracking();
     if(userPosTimer)clearTimeout(userPosTimer);
-    userPosTimer=setTimeout(()=>{userPosTimer=null;set({userPos:null,userPosAt:null})},USER_POS_TTL_MS);
-    const wrap=document.getElementById("mv-wrap");
-    const img=document.getElementById("mv-img");
-    if(!wrap||!img||!img.naturalWidth)return;
-    const cw=wrap.clientWidth, ch=wrap.clientHeight;
-    const baseW=cw, baseH=img.naturalHeight*(cw/img.naturalWidth);
-    MV.tx=cw/2-(projected.mx/100)*baseW*MV.scale;
-    MV.ty=ch/2-(projected.my/100)*baseH*MV.scale;
-    mvClampPan();mvApply();
+    userPosTimer=setTimeout(()=>{userPosTimer=null;set({userPos:null,userPosAt:null,userHeading:null})},USER_POS_TTL_MS);
+    scheduleTileRender();
   },()=>{
     set({geoBusy:false});
     setGeoMsg(null);
@@ -1596,7 +1685,8 @@ function draw(){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="mv-wrap" id="mv-wrap">`;
-    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(Math.ceil(TILE_MAP.zoom+0.01))">+</button><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(Math.floor(TILE_MAP.zoom-0.01))">−</button></div>`;
+    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
+    if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
     h+=`<div class="tm-note" id="tm-note">Disney tiles</div>`;
     h+=`</div>`;
@@ -1611,6 +1701,7 @@ function draw(){
 }
 
 draw();
+loadDefaultMapView();
 fetchLive();
 loadCoords();
 loadTileCropBounds();

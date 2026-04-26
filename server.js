@@ -471,6 +471,7 @@ app.use(express.static(path.join(__dirname, "public"), {
 
 const COORDS_PATH = path.join(__dirname, "data", "ride-coords.json");
 const TILE_CROP_BOUNDS_PATH = path.join(__dirname, "data", "tile-crop-bounds.json");
+const MAP_DEFAULT_VIEW_PATH = path.join(__dirname, "data", "map-default-view.json");
 
 function readCoords() {
   try {
@@ -487,6 +488,14 @@ function writeCoords(coords) {
 function readTileCropBounds() {
   try {
     return JSON.parse(fs.readFileSync(TILE_CROP_BOUNDS_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function readMapDefaultView() {
+  try {
+    return JSON.parse(fs.readFileSync(MAP_DEFAULT_VIEW_PATH, "utf8"));
   } catch {
     return null;
   }
@@ -538,6 +547,11 @@ app.delete("/api/coords/:name", requireCoordsWriteAccess, (req, res) => {
 app.get("/api/tile-crop-bounds", (req, res) => {
   res.set("Cache-Control", "no-store");
   res.json(readTileCropBounds() || {});
+});
+
+app.get("/api/map-default-view", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(readMapDefaultView() || {});
 });
 
 function verifyInitData(initData) {
