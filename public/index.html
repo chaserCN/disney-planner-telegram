@@ -488,15 +488,15 @@ function renderTempChart(hours){
   }).join("");
   const labels=hours.filter((_,i)=>i%3===0||i===hours.length-1).map((h,i)=>{
     const p=points[hours.indexOf(h)];
-    return `<text x="${p.x.toFixed(1)}" y="${height-8}" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700">${weatherHourShort(h.time)}</text>`;
+    return `<text x="${p.x.toFixed(1)}" y="${height-8}" text-anchor="middle" fill="#64748b" font-size="13" font-weight="800">${weatherHourShort(h.time)}</text>`;
   }).join("");
   const dots=points.map((p,i)=>{
     const isMin=minIndexes.includes(i);
     const isMax=maxIndexes.includes(i);
     const showLabel=labelIndexes.has(i);
-    const labelY=Math.max(16,p.y-10);
+    const labelY=isMax?Math.min(height-10,p.y+18):Math.max(16,p.y-10);
     const labelColor=isMin?"#93c5fd":isMax?"#fca5a5":"#e2e8f0";
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isMin||isMax?4.2:3.4}" fill="#f8fafc"/>${showLabel?`<text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${labelColor}" font-size="12" font-weight="800">${Math.round(p.v)}°</text>`:""}`;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isMin||isMax?4.2:3.4}" fill="#f8fafc"/>${showLabel?`<text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${labelColor}" font-size="14" font-weight="800">${Math.round(p.v)}°</text>`:""}`;
   }).join("");
   const grid=[0,.5,1].map(k=>{
     const y=padTop+k*(height-padTop-padBottom);
@@ -515,13 +515,13 @@ function renderConditionsChart(hours, observedAt){
   }).join("");
   const labels=xLabelIndexes.map(i=>{
     const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
-    return `<text x="${x.toFixed(1)}" y="${height-6}" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700">${weatherHourShort(hours[i].time)}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${height-6}" text-anchor="middle" fill="#64748b" font-size="13" font-weight="800">${weatherHourShort(hours[i].time)}</text>`;
   }).join("");
   const icons=hours.map((h,i)=>{
     const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
     const hh=weatherHourShort(h.time);
     const active=observedHour===hh;
-    return `<text x="${x.toFixed(1)}" y="28" text-anchor="middle" font-size="${active?18:16}" fill="${active?'#e2e8f0':'#94a3b8'}">${WX_SKY_ICON(h.code,h.time,h.sunrise,h.sunset)}</text>`;
+    return `<text x="${x.toFixed(1)}" y="28" text-anchor="middle" font-size="${active?20:18}" fill="${active?'#e2e8f0':'#94a3b8'}">${WX_SKY_ICON(h.code,h.time,h.sunrise,h.sunset)}</text>`;
   }).join("");
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="62" style="display:block" aria-label="Условия по часам">${vGuides}${icons}${labels}</svg>`;
 }
@@ -548,11 +548,11 @@ function renderPrecipChart(hours){
     const h=chartHours[i];
     const x=padX+(i*plotW)/Math.max(1,chartHours.length-1);
     const v=Number.isFinite(h.precipitation_probability)?Math.round(h.precipitation_probability):0;
-    return `<text x="${x.toFixed(1)}" y="12" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="800">${v}%</text>`;
+    return `<text x="${x.toFixed(1)}" y="13" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="800">${v}%</text>`;
   }).join("");
   const labels=chartHours.filter((_,i)=>i%3===0||i===chartHours.length-1).map(h=>{
     const x=padX+(chartHours.indexOf(h)*plotW)/Math.max(1,chartHours.length-1);
-    return `<text x="${x.toFixed(1)}" y="${height-8}" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700">${weatherHourShort(h.time)}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${height-8}" text-anchor="middle" fill="#64748b" font-size="13" font-weight="800">${weatherHourShort(h.time)}</text>`;
   }).join("");
   const grid=[0,25,50,75,100].map(v=>{
     const y=padTop+chartH-(v/100)*chartH;
