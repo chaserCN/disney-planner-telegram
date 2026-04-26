@@ -58,8 +58,9 @@
   .wx-btn:active { background:color-mix(in srgb, var(--ac) 12%, var(--cd)); border-color:color-mix(in srgb, var(--ac) 35%, var(--bd)); }
   .wx { display:inline-flex; align-items:baseline; gap:5px; font-size:15px; line-height:1.1; color:var(--tx); flex-shrink:0; user-select:none; white-space:nowrap; }
   .wx .t { font-size:13px; font-weight:700; color:var(--tx); }
-  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:calc(20px + var(--safe-top)) 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); overflow:auto; overscroll-behavior:contain; touch-action:pan-y; }
-  .wmc { width:min(520px,100%); max-height:min(calc(100vh - var(--safe-top) - var(--safe-bot) - 32px),760px); overflow:auto; background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(11,14,24,.98)); border:1px solid var(--bd); border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.55); padding:14px 16px 12px; margin-top:auto; }
+  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:calc(20px + var(--safe-top)) 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); overflow:auto; overscroll-behavior:contain; touch-action:pan-y; transition:background-color .22s ease, backdrop-filter .22s ease; }
+  .wmc { width:min(520px,100%); max-height:min(calc(100vh - var(--safe-top) - var(--safe-bot) - 32px),760px); overflow:auto; -webkit-overflow-scrolling:touch; background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(11,14,24,.98)); border:1px solid var(--bd); border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.55); padding:14px 16px 12px; margin-top:auto; transition:transform .25s ease; will-change:transform; touch-action:pan-y; }
+  .wmc.dragging { transition:none; }
   .wmh { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
   .wmtt { font-size:18px; font-weight:800; }
   .wmx { width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.06); color:var(--tx); font-size:22px; line-height:1; cursor:pointer; flex-shrink:0; }
@@ -695,6 +696,7 @@ function initPullToRefresh(){
   const getScrollTop=()=>window.scrollY||document.documentElement.scrollTop||0;
 
   document.addEventListener("touchstart",e=>{
+    if(S.weatherOpen)return;
     if(busy)return;
     if(e.target.closest(".mv-wrap"))return;
     if(getScrollTop()>0)return;
@@ -703,6 +705,7 @@ function initPullToRefresh(){
   },{passive:true});
 
   document.addEventListener("touchmove",e=>{
+    if(S.weatherOpen)return;
     if(startY===null||busy)return;
     dy=e.touches[0].clientY-startY;
     if(dy<=0){if(active){active=false;updatePtr(0,false)}return}
@@ -713,6 +716,7 @@ function initPullToRefresh(){
   },{passive:true});
 
   document.addEventListener("touchend",()=>{
+    if(S.weatherOpen){startY=null;dy=0;active=false;return}
     if(startY===null){return}
     const wasReady=dy*0.5>=THRESHOLD;
     startY=null;dy=0;
@@ -756,6 +760,80 @@ function initModalInteractionLock(){
   };
   document.addEventListener("touchmove",blockBackground,{passive:false});
   document.addEventListener("wheel",blockBackground,{passive:false});
+}
+
+function attachWeatherDrag(){
+  const wmo=document.querySelector(".wmo");
+  const wmc=document.querySelector(".wmc");
+  if(!wmc||wmc.dataset.dragBound)return;
+  wmc.dataset.dragBound="1";
+  let startY=null,startX=null,dy=0,dragging=false,decided=false;
+  const DISMISS_PX=110;
+  const DISMISS_VELOCITY=0.6;
+  let lastY=0,lastT=0,velocity=0;
+  const setOffset=(y)=>{
+    wmc.style.transform=`translateY(${y}px)`;
+    if(wmo){
+      const k=Math.max(0,Math.min(1,y/300));
+      wmo.style.backgroundColor=`rgba(3,6,12,${(0.62*(1-k)).toFixed(3)})`;
+    }
+  };
+  const reset=(animate)=>{
+    if(animate){wmc.classList.remove("dragging");}
+    wmc.style.transform="";
+    if(wmo)wmo.style.backgroundColor="";
+  };
+  wmc.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1)return;
+    startY=e.touches[0].clientY;
+    startX=e.touches[0].clientX;
+    lastY=startY;lastT=e.timeStamp;velocity=0;
+    dy=0;dragging=false;decided=false;
+  },{passive:true});
+  wmc.addEventListener("touchmove",e=>{
+    if(startY===null)return;
+    const y=e.touches[0].clientY;
+    const x=e.touches[0].clientX;
+    const ady=y-startY;
+    const adx=x-startX;
+    if(!decided){
+      if(Math.abs(adx)>Math.abs(ady)&&Math.abs(adx)>8){startY=null;return}
+      if(Math.abs(ady)<6)return;
+      decided=true;
+      if(ady>0&&wmc.scrollTop<=0){
+        dragging=true;
+        wmc.classList.add("dragging");
+      }else{
+        startY=null;return;
+      }
+    }
+    if(!dragging)return;
+    const dt=e.timeStamp-lastT;
+    if(dt>0)velocity=(y-lastY)/dt;
+    lastY=y;lastT=e.timeStamp;
+    dy=Math.max(0,ady);
+    if(e.cancelable)e.preventDefault();
+    setOffset(dy);
+  },{passive:false});
+  const finish=()=>{
+    if(startY===null){return}
+    const wasDragging=dragging;
+    const finalDy=dy;
+    const finalV=velocity;
+    startY=null;dy=0;dragging=false;decided=false;
+    if(!wasDragging)return;
+    wmc.classList.remove("dragging");
+    if(finalDy>=DISMISS_PX||finalV>=DISMISS_VELOCITY){
+      const target=Math.max(finalDy,wmc.offsetHeight);
+      wmc.style.transform=`translateY(${target}px)`;
+      if(wmo)wmo.style.backgroundColor="rgba(3,6,12,0)";
+      setTimeout(()=>{reset(false);closeWeatherModal()},220);
+    }else{
+      reset(true);
+    }
+  };
+  wmc.addEventListener("touchend",finish,{passive:true});
+  wmc.addEventListener("touchcancel",finish,{passive:true});
 }
 
 async function loadCoords(){
@@ -1281,6 +1359,8 @@ function draw(){
 
   h+=renderWeatherModal();
   $.innerHTML=h;
+
+  if(S.weatherOpen)attachWeatherDrag();
 
   if(S.tab==="map"){
     MV.ready=false;
