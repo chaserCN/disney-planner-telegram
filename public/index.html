@@ -443,6 +443,25 @@ const weatherObservedHour=s=>{
   const h=weatherParisHour(s);
   return Number.isFinite(h)?String(h).padStart(2,"0"):null;
 };
+function weatherNowMarkerX(hours, observedAt, width, padX){
+  if(!hours.length || !observedAt) return null;
+  const nowTs=weatherTs(observedAt);
+  if(nowTs==null)return null;
+  const points=hours.map(h=>weatherTs(h.time));
+  if(points.some(ts=>ts==null))return null;
+  const plotW=width-padX*2;
+  if(points.length===1)return padX+plotW/2;
+  if(nowTs<points[0]||nowTs>points[points.length-1])return null;
+  for(let i=0;i<points.length-1;i++){
+    const a=points[i], b=points[i+1];
+    if(nowTs<a||nowTs>b)continue;
+    const k=b===a?0:(nowTs-a)/(b-a);
+    const x0=padX+(i*plotW)/Math.max(1,hours.length-1);
+    const x1=padX+((i+1)*plotW)/Math.max(1,hours.length-1);
+    return x0+(x1-x0)*k;
+  }
+  return padX+((points.length-1)*plotW)/Math.max(1,hours.length-1);
+}
 function openWeatherModal(e){
   if(e)e.stopPropagation();
   if(!S.weather||!Array.isArray(S.weather.days)||!S.weather.days.length)return;
@@ -480,6 +499,7 @@ function renderTempChart(hours){
   const vals=hours.map(h=>h.temp).filter(Number.isFinite);
   if(!vals.length)return "";
   const width=440, height=142, padX=12, padTop=20, padBottom=22;
+  const nowTs=weatherTs(S.weather?.observedAt);
   let min=Math.floor(Math.min(...vals)-1), max=Math.ceil(Math.max(...vals)+1);
   if(min===max){min-=1;max+=1}
   const range=max-min;
@@ -499,6 +519,32 @@ function renderTempChart(hours){
     return {x,y,v:h.temp,t:h.time};
   });
   const line=points.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  let pastLine="";
+  let futureLine=line;
+  if(nowTs!=null&&hours.length>1){
+    const timePoints=hours.map(h=>weatherTs(h.time));
+    if(timePoints.every(ts=>ts!=null)){
+      if(nowTs<=timePoints[0]){
+        pastLine="";
+        futureLine=line;
+      }else if(nowTs>=timePoints[timePoints.length-1]){
+        pastLine=line;
+        futureLine="";
+      }else{
+        for(let i=0;i<timePoints.length-1;i++){
+          const a=timePoints[i], b=timePoints[i+1];
+          if(nowTs<a||nowTs>b)continue;
+          const k=b===a?0:(nowTs-a)/(b-a);
+          const midX=points[i].x+(points[i+1].x-points[i].x)*k;
+          const midY=points[i].y+(points[i+1].y-points[i].y)*k;
+          const splitPoint=`${midX.toFixed(1)},${midY.toFixed(1)}`;
+          pastLine=points.slice(0,i+1).map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).concat(splitPoint).join(" ");
+          futureLine=[splitPoint].concat(points.slice(i+1).map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`)).join(" ");
+          break;
+        }
+      }
+    }
+  }
   const xLabelIndexes=hours.map((_,i)=>i).filter(i=>i%3===0||i===hours.length-1);
   const vGuides=xLabelIndexes.map(i=>{
     const p=points[i];
@@ -512,19 +558,27 @@ function renderTempChart(hours){
     const isMin=minIndexes.includes(i);
     const isMax=maxIndexes.includes(i);
     const showLabel=labelIndexes.has(i);
+    const ts=weatherTs(hours[i]?.time);
+    const past=nowTs!=null&&ts!=null&&ts<nowTs;
     const labelY=isMax?Math.min(height-10,p.y+18):Math.max(16,p.y-10);
     const labelColor=isMin?"#93c5fd":isMax?"#fca5a5":"#e2e8f0";
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isMin||isMax?4.2:3.4}" fill="#f8fafc"/>${showLabel?`<text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${labelColor}" font-size="14" font-weight="800">${Math.round(p.v)}°</text>`:""}`;
+    const dotOpacity=past?0.42:1;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isMin||isMax?4.2:3.4}" fill="#f8fafc" opacity="${dotOpacity}"/>${showLabel?`<text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${labelColor}" font-size="14" font-weight="800">${Math.round(p.v)}°</text>`:""}`;
   }).join("");
   const grid=[0,.5,1].map(k=>{
     const y=padTop+k*(height-padTop-padBottom);
     return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${width-padX}" y2="${y.toFixed(1)}" stroke="rgba(148,163,184,.18)" stroke-width="1"/>`;
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="142" style="display:block;overflow:visible" aria-label="Температура по часам">${grid}${vGuides}<polyline points="${line}" fill="none" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${labels}</svg>`;
+  const nowMarkerX=weatherNowMarkerX(hours,S.weather?.observedAt,width,padX);
+  const nowMarker=nowMarkerX==null?"":`<polygon points="${(nowMarkerX-5).toFixed(1)},${(height-padBottom+2).toFixed(1)} ${(nowMarkerX+5).toFixed(1)},${(height-padBottom+2).toFixed(1)} ${nowMarkerX.toFixed(1)},${(height-padBottom-6).toFixed(1)}" fill="#7dd3fc"/>`;
+  const pastPolyline=pastLine?`<polyline points="${pastLine}" fill="none" stroke="#f59e0b" stroke-opacity=".38" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`:"";
+  const futurePolyline=futureLine?`<polyline points="${futureLine}" fill="none" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`:"";
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="142" style="display:block;overflow:visible" aria-label="Температура по часам">${grid}${vGuides}${pastPolyline}${futurePolyline}${dots}${labels}${nowMarker}</svg>`;
 }
 function renderConditionsChart(hours, observedAt){
   if(!hours.length)return "";
   const width=440, height=62, padX=12, padTop=4, padBottom=20;
+  const nowTs=weatherTs(observedAt);
   const xLabelIndexes=hours.map((_,i)=>i).filter(i=>i%3===0||i===hours.length-1);
   const observedHour=weatherObservedHour(observedAt);
   const vGuides=xLabelIndexes.map(i=>{
@@ -539,14 +593,20 @@ function renderConditionsChart(hours, observedAt){
     const x=padX+(i*(width-padX*2))/Math.max(1,hours.length-1);
     const hh=weatherHourShort(h.time);
     const active=observedHour===hh;
-    return `<text x="${x.toFixed(1)}" y="28" text-anchor="middle" font-size="${active?20:18}" fill="${active?'#e2e8f0':'#94a3b8'}">${WX_SKY_ICON(h.code,h.time,h.sunrise,h.sunset)}</text>`;
+    const ts=weatherTs(h.time);
+    const past=nowTs!=null&&ts!=null&&ts<nowTs;
+    const opacity=active?1:(past?0.42:0.82);
+    return `<text x="${x.toFixed(1)}" y="28" text-anchor="middle" font-size="${active?20:18}" opacity="${opacity}">${WX_SKY_ICON(h.code,h.time,h.sunrise,h.sunset)}</text>`;
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="62" style="display:block" aria-label="Условия по часам">${vGuides}${icons}${labels}</svg>`;
+  const nowMarkerX=weatherNowMarkerX(hours,observedAt,width,padX);
+  const nowMarker=nowMarkerX==null?"":`<polygon points="${(nowMarkerX-5).toFixed(1)},${(height-padBottom+2).toFixed(1)} ${(nowMarkerX+5).toFixed(1)},${(height-padBottom+2).toFixed(1)} ${nowMarkerX.toFixed(1)},${(height-padBottom-6).toFixed(1)}" fill="#7dd3fc"/>`;
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="62" style="display:block" aria-label="Условия по часам">${vGuides}${icons}${labels}${nowMarker}</svg>`;
 }
 function renderPrecipChart(hours){
   let vals=hours.map(h=>h.precipitation_probability).filter(Number.isFinite);
   if(!vals.length)return "";
   const chartHours=hours;
+  const nowTs=weatherTs(S.weather?.observedAt);
   vals=chartHours.map(h=>h.precipitation_probability).filter(Number.isFinite);
   const width=440, height=126, padX=12, padTop=12, padBottom=24, chartH=height-padTop-padBottom;
   const plotW=width-padX*2;
@@ -556,7 +616,9 @@ function renderPrecipChart(hours){
     const v=Number.isFinite(h.precipitation_probability)?h.precipitation_probability:0;
     const x=padX+(i*plotW)/Math.max(1,chartHours.length-1)-barW/2;
     const hPx=(v/100)*chartH;
-    return `<rect x="${x.toFixed(1)}" y="${(padTop+chartH-hPx).toFixed(1)}" width="${barW.toFixed(1)}" height="${hPx.toFixed(1)}" rx="3" fill="rgba(96,165,250,.88)"/>`;
+    const ts=weatherTs(h.time);
+    const past=nowTs!=null&&ts!=null&&ts<nowTs;
+    return `<rect x="${x.toFixed(1)}" y="${(padTop+chartH-hPx).toFixed(1)}" width="${barW.toFixed(1)}" height="${hPx.toFixed(1)}" rx="3" fill="rgba(96,165,250,.88)" opacity="${past?0.38:1}"/>`;
   }).join("");
   const vGuides=xLabelIndexes.map(i=>{
     const x=padX+(i*plotW)/Math.max(1,chartHours.length-1);
@@ -576,7 +638,9 @@ function renderPrecipChart(hours){
     const y=padTop+chartH-(v/100)*chartH;
     return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${width-padX}" y2="${y.toFixed(1)}" stroke="rgba(148,163,184,.18)" stroke-width="1"/>`;
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="126" style="display:block" aria-label="Вероятность осадков по часам">${grid}${vGuides}${topLabels}${bars}${labels}</svg>`;
+  const nowMarkerX=weatherNowMarkerX(chartHours,S.weather?.observedAt,width,padX);
+  const nowMarker=nowMarkerX==null?"":`<polygon points="${(nowMarkerX-5).toFixed(1)},${(height-padBottom+2).toFixed(1)} ${(nowMarkerX+5).toFixed(1)},${(height-padBottom+2).toFixed(1)} ${nowMarkerX.toFixed(1)},${(height-padBottom-6).toFixed(1)}" fill="#7dd3fc"/>`;
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="126" style="display:block" aria-label="Вероятность осадков по часам">${grid}${vGuides}${topLabels}${bars}${labels}${nowMarker}</svg>`;
 }
 function renderWeatherModal(){
   const wx=S.weather;
