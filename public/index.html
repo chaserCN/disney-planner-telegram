@@ -178,7 +178,7 @@
 
   /* Map view */
   .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; margin-bottom:32px; }
-  .tm-viewport { position:absolute; inset:0; overflow:hidden; }
+  .tm-viewport { position:absolute; inset:0; overflow:hidden; transform-origin:50% 50%; will-change:transform; }
   .tm-tiles { position:absolute; inset:0; overflow:hidden; }
   .tm-set { position:absolute; inset:0; opacity:1; }
   .tm-set.active { opacity:1; }
@@ -197,6 +197,10 @@
   .tm-pt.t-C .body { background:#94a3b8; color:#1e293b; }
   .tm-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:4; }
   .tm-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
+  .tm-compass { position:absolute; right:8px; top:8px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(0,0,0,.65); color:#fff; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; z-index:4; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+  .tm-compass svg { width:24px; height:24px; transition:transform .25s ease; display:block; }
+  .tm-compass .n { fill:#ef4444; }
+  .tm-compass .s { fill:#e2e8f0; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
   .mv-img { display:block; width:100%; height:auto; -webkit-user-drag:none; pointer-events:none; }
   .mv-pt { position:absolute; width:26px; height:26px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 2px 4px rgba(0,0,0,.5); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; }
@@ -693,8 +697,10 @@ const TILE_MAP = {
   maxZoom: 18,
   zoom: 16,
   center: { lat: 48.86979615501914, lng: 2.785484790802002 },
+  rotation: 0,
   mounted: false
 };
+const ROTATION_SNAP_DEG = 6;
 const GEO_TEST_OVERRIDE = {
   enabled: false,
   lat: 48.865585,
@@ -754,6 +760,12 @@ function unprojectWorld(x,y,zoom){
   const n = Math.PI - (2 * Math.PI * y) / size;
   const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
   return { lat, lng };
+}
+
+function screenToMapDelta(dx, dy){
+  const r = (-(TILE_MAP.rotation || 0) * Math.PI) / 180;
+  const cos = Math.cos(r), sin = Math.sin(r);
+  return { x: dx * cos - dy * sin, y: dx * sin + dy * cos };
 }
 
 function wrapX(x, zoom){
@@ -1073,6 +1085,49 @@ function renderTileMap(){
 
   mountTileSet(html);
   overlay.innerHTML = overlayHtml;
+
+  const viewport = wrap.querySelector(".tm-viewport");
+  if(viewport) viewport.style.transform = TILE_MAP.rotation ? `rotate(${TILE_MAP.rotation}deg)` : "";
+  const counter = TILE_MAP.rotation ? `rotate(${-TILE_MAP.rotation}deg)` : "";
+  if(counter){
+    overlay.querySelectorAll(".tm-pt").forEach(el=>{
+      el.style.transform = `translate(-50%,-50%) ${counter}`;
+    });
+    overlay.querySelectorAll(".usr-arrow").forEach(el=>{
+      const base = el.style.transform.replace(/\srotate\([^)]*\)\s*$/,"");
+      el.style.transform = base ? `${base} ${counter}` : `translate(-50%,-50%) ${counter}`;
+    });
+    overlay.querySelectorAll(".usr-pt").forEach(el=>{
+      el.style.transform = `translate(-50%,-50%) ${counter}`;
+    });
+    overlay.querySelectorAll(".mv-popup").forEach(el=>{
+      el.style.transform = counter;
+      el.style.transformOrigin = "50% 100%";
+    });
+  }
+
+  updateCompass();
+}
+
+function updateCompass(){
+  const btn = document.getElementById("tm-compass");
+  if(!btn) return;
+  const rot = TILE_MAP.rotation;
+  btn.style.display = rot ? "flex" : "none";
+  const arrow = btn.querySelector("svg");
+  if(arrow) arrow.style.transform = `rotate(${-rot}deg)`;
+}
+
+function setMapRotation(deg){
+  let next = ((deg % 360) + 540) % 360 - 180;
+  if(Math.abs(next) < ROTATION_SNAP_DEG) next = 0;
+  TILE_MAP.rotation = next;
+  scheduleTileRender();
+}
+
+function resetMapRotation(){
+  TILE_MAP.rotation = 0;
+  scheduleTileRender();
 }
 
 function scheduleTileRender(){
@@ -1150,19 +1205,22 @@ function initTileMap(){
       const cx = (a.x + b.x) / 2;
       const cy = (a.y + b.y) / 2;
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
       if(!tilePanStart || !Number.isFinite(tilePanStart.pinchDist)){
         const rect = wrap.getBoundingClientRect();
         const screenX = cx - rect.left;
         const screenY = cy - rect.top;
         const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, TILE_MAP.zoom);
-        const anchorWorldX = centerWorld.x + (screenX - wrap.clientWidth / 2);
-        const anchorWorldY = centerWorld.y + (screenY - wrap.clientHeight / 2);
+        const local = screenToMapDelta(screenX - wrap.clientWidth / 2, screenY - wrap.clientHeight / 2);
+        const anchorWorldX = centerWorld.x + local.x;
+        const anchorWorldY = centerWorld.y + local.y;
         const anchorLatLng = unprojectWorld(anchorWorldX, anchorWorldY, TILE_MAP.zoom);
         tilePanStart = {
           pinchDist: dist,
+          startAngle: angle,
+          startRotation: TILE_MAP.rotation,
           zoom: TILE_MAP.zoom,
-          anchorLatLng,
-          midpoint: { x: screenX, y: screenY }
+          anchorLatLng
         };
         if(tileTapStart) tileTapStart.moved = true;
         return;
@@ -1170,12 +1228,17 @@ function initTileMap(){
       if(tileTapStart) tileTapStart.moved = true;
       const zoomDelta = Math.log2(Math.max(1, dist) / Math.max(1, tilePanStart.pinchDist));
       const nextZoom = clamp(tilePanStart.zoom + zoomDelta, TILE_MAP.minZoom, TILE_MAP.maxZoom);
+      let nextRotation = tilePanStart.startRotation + (angle - tilePanStart.startAngle);
+      nextRotation = ((nextRotation % 360) + 540) % 360 - 180;
+      if(Math.abs(nextRotation) < ROTATION_SNAP_DEG) nextRotation = 0;
+      TILE_MAP.rotation = nextRotation;
       const rect = wrap.getBoundingClientRect();
       const screenX = cx - rect.left;
       const screenY = cy - rect.top;
+      const local = screenToMapDelta(screenX - wrap.clientWidth / 2, screenY - wrap.clientHeight / 2);
       const anchorWorld = projectLatLng(tilePanStart.anchorLatLng.lat, tilePanStart.anchorLatLng.lng, nextZoom);
-      const nextCenterWorldX = anchorWorld.x - (screenX - wrap.clientWidth / 2);
-      const nextCenterWorldY = anchorWorld.y - (screenY - wrap.clientHeight / 2);
+      const nextCenterWorldX = anchorWorld.x - local.x;
+      const nextCenterWorldY = anchorWorld.y - local.y;
       TILE_MAP.zoom = nextZoom;
       const size = worldSize(nextZoom);
       TILE_MAP.center = unprojectWorld(nextCenterWorldX, clamp(nextCenterWorldY, 0, size), nextZoom);
@@ -1185,15 +1248,16 @@ function initTileMap(){
       return;
     }
     if(TILE_POINTERS.size !== 1 || !tilePanStart || !Number.isFinite(tilePanStart.x)) return;
-    const dx = e.clientX - tilePanStart.x;
-    const dy = e.clientY - tilePanStart.y;
+    const dxRaw = e.clientX - tilePanStart.x;
+    const dyRaw = e.clientY - tilePanStart.y;
     if(tileTapStart && (Math.abs(e.clientX - tileTapStart.x) > 4 || Math.abs(e.clientY - tileTapStart.y) > 4)){
       tileTapStart.moved = true;
     }
+    const local = screenToMapDelta(dxRaw, dyRaw);
     const z = TILE_MAP.zoom;
     const startWorld = projectLatLng(tilePanStart.center.lat, tilePanStart.center.lng, z);
-    const nextWorldX = startWorld.x - dx;
-    const nextWorldY = startWorld.y - dy;
+    const nextWorldX = startWorld.x - local.x;
+    const nextWorldY = startWorld.y - local.y;
     const size = worldSize(z);
     const clampedY = clamp(nextWorldY, 0, size);
     TILE_MAP.center = unprojectWorld(nextWorldX, clampedY, z);
@@ -1242,8 +1306,9 @@ function initTileMap(){
     }
     const z = TILE_MAP.zoom;
     const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
-    const nextWorldX = centerWorld.x + e.deltaX;
-    const nextWorldY = centerWorld.y + e.deltaY;
+    const local = screenToMapDelta(e.deltaX, e.deltaY);
+    const nextWorldX = centerWorld.x + local.x;
+    const nextWorldY = centerWorld.y + local.y;
     const size = worldSize(z);
     TILE_MAP.center = unprojectWorld(nextWorldX, clamp(nextWorldY, 0, size), z);
     scheduleMapViewSave();
@@ -1964,6 +2029,7 @@ function draw(){
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
     h+=`<div class="tm-zoom"><button type="button" onclick="zoomInTileMap()">+</button><button type="button" onclick="zoomOutTileMap()">−</button></div>`;
+    h+=`<button class="tm-compass" id="tm-compass" type="button" onclick="event.stopPropagation();resetMapRotation()" aria-label="Развернуть на север" style="display:none"><svg viewBox="0 0 24 24"><polygon class="n" points="12,2 16,12 12,10 8,12"/><polygon class="s" points="12,22 16,12 12,14 8,12"/></svg></button>`;
     h+=`</div>`;
   }
 
