@@ -1008,6 +1008,14 @@ function setTileZoom(nextZoom){
   scheduleTileRender();
 }
 
+function zoomInTileMap(){
+  setTileZoom(TILE_MAP.zoom + 0.5);
+}
+
+function zoomOutTileMap(){
+  setTileZoom(TILE_MAP.zoom - 0.5);
+}
+
 async function loadDefaultMapView(){
   if(loadSavedMapViewFromStorage()){
     scheduleTileRender();
@@ -1036,7 +1044,7 @@ function initTileMap(){
   TILE_MAP.mounted = true;
 
   wrap.addEventListener("pointerdown",e=>{
-    if(e.target.closest(".mv-tool")) return;
+    if(e.target.closest(".mv-tool") || e.target.closest(".tm-zoom")) return;
     tileTapStart = { x:e.clientX, y:e.clientY, moved:false, target:e.target };
     TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(TILE_POINTERS.size === 1){
@@ -1124,7 +1132,7 @@ function initTileMap(){
     }
     tileTapStart = null;
     if(!tap) return;
-    if(target.closest(".mv-tool")) return;
+    if(target.closest(".mv-tool") || target.closest(".tm-zoom")) return;
     if(target.closest("[data-close]")) { mvClosePopup(); return; }
     const marker = target.closest(".tm-pt");
     if(marker){
@@ -1865,7 +1873,7 @@ function draw(){
     h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
-    h+=`<div class="tm-zoom"><button onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom+0.5)">+</button><button onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom-0.5)">−</button></div>`;
+    h+=`<div class="tm-zoom"><button type="button" onclick="zoomInTileMap()">+</button><button type="button" onclick="zoomOutTileMap()">−</button></div>`;
     h+=`</div>`;
   }
 
