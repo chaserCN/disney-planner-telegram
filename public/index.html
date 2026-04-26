@@ -78,10 +78,6 @@
   .wch .tt { font-size:13px; font-weight:800; margin-bottom:8px; }
   .wch .sb { font-size:11px; color:var(--mu); margin-top:8px; }
   .wch.wx-cond { padding-top:10px; }
-  @media (max-width:420px) {
-    .wmsm { grid-template-columns:1fr; }
-  }
-
   /* Park section */
   .ps { margin-bottom:14px; }
   .psh { display:flex; align-items:center; gap:6px; padding-bottom:5px; margin-bottom:6px; }
@@ -453,6 +449,15 @@ function weatherSummaryRange(min,max){
   if(Number.isFinite(max))return `${Math.round(max)}°`;
   return "—";
 }
+function weatherDayFocusTemp(hours){
+  if(!Array.isArray(hours)||!hours.length)return null;
+  const noon=hours.find(h=>weatherHourShort(h.time)==="12");
+  if(noon&&Number.isFinite(noon.temp))return noon.temp;
+  const afternoon=hours.find(h=>weatherHourShort(h.time)==="13"||weatherHourShort(h.time)==="14");
+  if(afternoon&&Number.isFinite(afternoon.temp))return afternoon.temp;
+  const mid=hours[Math.floor(hours.length/2)];
+  return Number.isFinite(mid?.temp)?mid.temp:null;
+}
 function renderTempChart(hours){
   const vals=hours.map(h=>h.temp).filter(Number.isFinite);
   if(!vals.length)return "";
@@ -566,7 +571,7 @@ function renderWeatherModal(){
     <div class="wmc" onclick="event.stopPropagation()">
       <div class="wmh">
         <div>
-          <div class="wmtt">Погода сегодня</div>
+          <div class="wmtt">Погода</div>
           <div class="wmsb">Disneyland Paris · ${esc(day.date || "")}${idx===0&&weatherUserTimeLabel(wx.observedAt)?` · обновлено ${weatherUserTimeLabel(wx.observedAt)}`:""}</div>
         </div>
         <button class="wmx" onclick="closeWeatherModal(event)" aria-label="Закрыть">×</button>
@@ -577,7 +582,7 @@ function renderWeatherModal(){
           <div class="ctrl"><button onclick="weatherSetDay(-1,event)" ${idx===0?"disabled":""} aria-label="Предыдущий день">‹</button><button onclick="weatherSetDay(1,event)" ${idx>=days.length-1?"disabled":""} aria-label="Следующий день">›</button></div>
         </div>
         <div class="wmsm">
-          <div class="it"><div class="lb">${idx===0?"Сейчас":"Старт дня"}</div><div class="vl">${idx===0&&Number.isFinite(wx.temp)?`${Math.round(wx.temp)}°`:Number.isFinite(hours[0]?.temp)?`${Math.round(hours[0].temp)}°`:"—"}</div></div>
+          <div class="it"><div class="lb">${idx===0?"Сейчас":"Днём"}</div><div class="vl">${idx===0&&Number.isFinite(wx.temp)?`${Math.round(wx.temp)}°`:Number.isFinite(weatherDayFocusTemp(hours))?`${Math.round(weatherDayFocusTemp(hours))}°`:"—"}</div></div>
           <div class="it"><div class="lb">Диапазон</div><div class="vl">${weatherSummaryRange(day.temp_min,day.temp_max)}</div></div>
           <div class="it"><div class="lb">Осадки</div><div class="vl">${Number.isFinite(day.precipitation_probability_max)?`${Math.round(day.precipitation_probability_max)}%`:"—"}</div></div>
         </div>
