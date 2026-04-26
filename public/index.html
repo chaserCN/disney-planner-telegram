@@ -695,6 +695,7 @@ const TILE_SIZE = 512;
 const TILE_MAP = {
   minZoom: 15,
   maxZoom: 18,
+  maxTileZoom: 19,
   zoom: 16,
   center: { lat: 48.86979615501914, lng: 2.785484790802002 },
   rotation: 0,
@@ -948,7 +949,10 @@ function renderTileMap(){
   const vw = viewport.clientWidth;
   const vh = viewport.clientHeight;
   const zoom = TILE_MAP.zoom;
-  const tileZoom = clamp(Math.floor(zoom), TILE_MAP.minZoom, TILE_MAP.maxZoom);
+  const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const dprBoost = Math.max(0, Math.round(Math.log2(dpr)));
+  const tileZoomCap = TILE_MAP.maxTileZoom ?? TILE_MAP.maxZoom;
+  const tileZoom = clamp(Math.floor(zoom) + dprBoost, TILE_MAP.minZoom, tileZoomCap);
   const scale = 2 ** tileZoom;
   const visualScale = 2 ** (zoom - tileZoom);
   const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, zoom);
