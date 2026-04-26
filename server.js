@@ -470,6 +470,7 @@ app.use(express.static(path.join(__dirname, "public"), {
 }));
 
 const COORDS_PATH = path.join(__dirname, "data", "ride-coords.json");
+const TILE_CROP_BOUNDS_PATH = path.join(__dirname, "data", "tile-crop-bounds.json");
 
 function readCoords() {
   try {
@@ -481,6 +482,14 @@ function readCoords() {
 
 function writeCoords(coords) {
   fs.writeFileSync(COORDS_PATH, JSON.stringify(coords, null, 2));
+}
+
+function readTileCropBounds() {
+  try {
+    return JSON.parse(fs.readFileSync(TILE_CROP_BOUNDS_PATH, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 function hasCoordsWriteAccess(req) {
@@ -503,12 +512,18 @@ app.get("/api/coords", (req, res) => {
 });
 
 app.post("/api/coords", requireCoordsWriteAccess, (req, res) => {
-  const { name, mx, my } = req.body || {};
-  if (typeof name !== "string" || !name || typeof mx !== "number" || typeof my !== "number") {
-    return res.status(400).json({ error: "Expected {name, mx, my}" });
+  const { name, lat, lng } = req.body || {};
+  if (typeof name !== "string" || !name) {
+    return res.status(400).json({ error: "Expected {name, lat, lng}" });
+  }
+  if (typeof lat !== "number" || typeof lng !== "number") {
+    return res.status(400).json({ error: "Expected numeric lat/lng" });
   }
   const coords = readCoords();
-  coords[name] = { mx: Math.round(mx * 100) / 100, my: Math.round(my * 100) / 100 };
+  coords[name] = {
+    lat: Math.round(lat * 1e7) / 1e7,
+    lng: Math.round(lng * 1e7) / 1e7
+  };
   writeCoords(coords);
   res.json({ ok: true, coords });
 });
@@ -518,6 +533,11 @@ app.delete("/api/coords/:name", requireCoordsWriteAccess, (req, res) => {
   delete coords[req.params.name];
   writeCoords(coords);
   res.json({ ok: true, coords });
+});
+
+app.get("/api/tile-crop-bounds", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(readTileCropBounds() || {});
 });
 
 function verifyInitData(initData) {

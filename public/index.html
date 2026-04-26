@@ -176,8 +176,12 @@
   /* Map view */
   .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; margin-bottom:32px; }
   .tm-viewport { position:absolute; inset:0; overflow:hidden; }
-  .tm-tiles { position:absolute; inset:0; }
+  .tm-tiles { position:absolute; inset:0; overflow:hidden; }
+  .tm-set { position:absolute; inset:0; opacity:1; }
+  .tm-set.active { opacity:1; }
+  .tm-overlay { position:absolute; inset:0; pointer-events:none; }
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
+  .tm-pt { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; }
   .tm-note { position:absolute; left:8px; bottom:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; z-index:3; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
   .mv-img { display:block; width:100%; height:auto; -webkit-user-drag:none; pointer-events:none; }
@@ -321,7 +325,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null};
 const weatherLocalParts=s=>{
   const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s||"");
   if(!m)return null;
@@ -603,6 +607,9 @@ const TILE_MAP = {
 };
 const TILE_POINTERS = new Map();
 let tilePanStart = null;
+let tileRenderRaf = 0;
+let tileSetSeq = 0;
+const LEGACY_GEO_CACHE = new Map();
 let geoMsgTimer = null;
 let userPosTimer = null;
 let liveRequest = null;
@@ -639,46 +646,196 @@ function wrapX(x, zoom){
   return ((x % max) + max) % max;
 }
 
-function renderTileMap(){
+function clampCenterToCrop(){
+  const crop = S.cropBounds && S.cropBounds.bounds;
   const wrap = document.getElementById("mv-wrap");
-  const layer = document.getElementById("tm-tiles");
-  if(!wrap || !layer) return;
+  if(!crop || !wrap) return;
+  const z = TILE_MAP.zoom;
   const vw = wrap.clientWidth;
   const vh = wrap.clientHeight;
-  const z = TILE_MAP.zoom;
-  const scale = 2 ** z;
-  const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
-  const topLeftX = centerWorld.x - vw / 2;
-  const topLeftY = centerWorld.y - vh / 2;
-  const tileMinX = Math.floor(topLeftX / TILE_SIZE);
-  const tileMaxX = Math.floor((topLeftX + vw) / TILE_SIZE);
-  const tileMinY = Math.floor(topLeftY / TILE_SIZE);
-  const tileMaxY = Math.floor((topLeftY + vh) / TILE_SIZE);
-  let html = "";
+  if(!vw || !vh) return;
 
-  for(let ty = tileMinY; ty <= tileMaxY; ty++){
-    if(ty < 0 || ty >= scale) continue;
-    for(let tx = tileMinX; tx <= tileMaxX; tx++){
-      const wrappedX = wrapX(tx, z);
-      const left = tx * TILE_SIZE - topLeftX;
-      const top = ty * TILE_SIZE - topLeftY;
-      html += `<img class="tm-tile" loading="eager" decoding="async" style="left:${left}px;top:${top}px" src="tiles/${z}/${wrappedX}/${ty}.jpg" alt="">`;
+  const westX = projectLatLng(0, crop.west, z).x;
+  const eastX = projectLatLng(0, crop.east, z).x;
+  const northY = projectLatLng(crop.north, 0, z).y;
+  const southY = projectLatLng(crop.south, 0, z).y;
+
+  const minCenterX = westX + vw / 2;
+  const maxCenterX = eastX - vw / 2;
+  const minCenterY = northY + vh / 2;
+  const maxCenterY = southY - vh / 2;
+
+  const center = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
+  let nextCenterX;
+  let nextCenterY;
+
+  if(minCenterX > maxCenterX) nextCenterX = (westX + eastX) / 2;
+  else nextCenterX = clamp(center.x, minCenterX, maxCenterX);
+
+  if(minCenterY > maxCenterY) nextCenterY = (northY + southY) / 2;
+  else nextCenterY = clamp(center.y, minCenterY, maxCenterY);
+
+  TILE_MAP.center = unprojectWorld(nextCenterX, nextCenterY, z);
+}
+
+function mountTileSet(html){
+  const layer = document.getElementById("tm-tiles");
+  if(!layer) return;
+  if(!html || !html.trim()) return;
+  const set = document.createElement("div");
+  set.className = "tm-set";
+  set.dataset.id = String(++tileSetSeq);
+  set.innerHTML = html;
+  const prevActive = layer.querySelector(".tm-set.active");
+  layer.appendChild(set);
+
+  let done = false;
+  const activate = ()=>{
+    if(done) return;
+    done = true;
+    set.classList.add("active");
+    if(prevActive && prevActive !== set) prevActive.remove();
+    // Keep DOM tidy in case of rapid zoom/pan bursts.
+    [...layer.querySelectorAll(".tm-set")].forEach(node=>{
+      if(node !== set && !node.classList.contains("active")) node.remove();
+    });
+  };
+
+  const imgs = [...set.querySelectorAll("img")];
+  if(!imgs.length){
+    activate();
+    return;
+  }
+  const waitCount = Math.min(6, imgs.length);
+  let pending = waitCount;
+  const onReady = ()=>{
+    pending -= 1;
+    if(pending <= 0) activate();
+  };
+  for(let i = 0; i < waitCount; i += 1){
+    const img = imgs[i];
+    if(img.complete) onReady();
+    else{
+      img.addEventListener("load", onReady, { once: true });
+      img.addEventListener("error", onReady, { once: true });
     }
   }
-  layer.innerHTML = html;
+  setTimeout(activate, 140);
+}
+
+function renderTileMap(){
+  clampCenterToCrop();
+  const wrap = document.getElementById("mv-wrap");
+  const layer = document.getElementById("tm-tiles");
+  const overlay = document.getElementById("tm-overlay");
+  if(!wrap || !layer || !overlay) return;
+  const vw = wrap.clientWidth;
+  const vh = wrap.clientHeight;
+  const zoom = TILE_MAP.zoom;
+  const tileZoom = clamp(Math.floor(zoom), TILE_MAP.minZoom, TILE_MAP.maxZoom);
+  const scale = 2 ** tileZoom;
+  const visualScale = 2 ** (zoom - tileZoom);
+  const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, zoom);
+  const topLeftX = centerWorld.x - vw / 2;
+  const topLeftY = centerWorld.y - vh / 2;
+  const topLeftBaseX = topLeftX / visualScale;
+  const topLeftBaseY = topLeftY / visualScale;
+  const tileMinX = Math.floor(topLeftBaseX / TILE_SIZE);
+  const tileMaxX = Math.floor((topLeftBaseX + vw / visualScale) / TILE_SIZE);
+  const tileMinY = Math.floor(topLeftBaseY / TILE_SIZE);
+  const tileMaxY = Math.floor((topLeftBaseY + vh / visualScale) / TILE_SIZE);
+  const crop = S.cropBounds && S.cropBounds.bounds;
+  let renderMinX = tileMinX;
+  let renderMaxX = tileMaxX;
+  let renderMinY = tileMinY;
+  let renderMaxY = tileMaxY;
+  if(crop){
+    const westPx = projectLatLng(0, crop.west, tileZoom).x;
+    const eastPx = projectLatLng(0, crop.east, tileZoom).x;
+    const northPx = projectLatLng(crop.north, 0, tileZoom).y;
+    const southPx = projectLatLng(crop.south, 0, tileZoom).y;
+    const cropMinX = Math.floor(westPx / TILE_SIZE);
+    const cropMaxX = Math.floor(eastPx / TILE_SIZE);
+    const cropMinY = Math.floor(northPx / TILE_SIZE);
+    const cropMaxY = Math.floor(southPx / TILE_SIZE);
+    renderMinX = Math.max(renderMinX, cropMinX);
+    renderMaxX = Math.min(renderMaxX, cropMaxX);
+    renderMinY = Math.max(renderMinY, cropMinY);
+    renderMaxY = Math.min(renderMaxY, cropMaxY);
+  }
+  let html = "";
+  let overlayHtml = "";
+  let visibleMarkers = 0;
+
+  for(let ty = renderMinY; ty <= renderMaxY; ty++){
+    if(ty < 0 || ty >= scale) continue;
+    for(let tx = renderMinX; tx <= renderMaxX; tx++){
+      const wrappedX = wrapX(tx, tileZoom);
+      const left = tx * TILE_SIZE * visualScale - topLeftX;
+      const top = ty * TILE_SIZE * visualScale - topLeftY;
+      const size = TILE_SIZE * visualScale;
+      html += `<img class="tm-tile" loading="eager" decoding="async" onerror="this.style.display='none'" style="left:${left}px;top:${top}px;width:${size}px;height:${size}px" src="tiles/${tileZoom}/${wrappedX}/${ty}.jpg" alt="">`;
+    }
+  }
+
+  const minStars = tierMinStars(S.mrt);
+  const zoomNorm = (zoom - TILE_MAP.minZoom) / Math.max(1, TILE_MAP.maxZoom - TILE_MAP.minZoom);
+  const markerSize = Math.round(16 + zoomNorm * 12); // 16..28 px
+  const markerFont = Math.round(9 + zoomNorm * 6);   // 9..15 px
+  for(const [name, meta] of Object.entries(R)){
+    const coord = S.coords[name];
+    if(!coord) continue;
+    if(S.pf !== "all" && meta.p !== S.pf) continue;
+    if(TIER_STARS[meta.t] < minStars) continue;
+
+    let geo = null;
+    if(Number.isFinite(coord.lat) && Number.isFinite(coord.lng)){
+      geo = { lat: coord.lat, lng: coord.lng };
+    } else if(Number.isFinite(coord.mx) && Number.isFinite(coord.my)){
+      const cacheKey = `${coord.mx}:${coord.my}`;
+      geo = LEGACY_GEO_CACHE.get(cacheKey);
+      if(!geo){
+        geo = calibrationPredict(coord.mx, coord.my);
+        if(geo) LEGACY_GEO_CACHE.set(cacheKey, geo);
+      }
+    }
+    if(!geo) continue;
+
+    const world = projectLatLng(geo.lat, geo.lng, zoom);
+    const px = world.x - topLeftX;
+    const py = world.y - topLeftY;
+    if(px < -20 || px > vw + 20 || py < -20 || py > vh + 20) continue;
+    overlayHtml += `<div class="tm-pt t-${meta.t}" style="left:${px}px;top:${py}px;width:${markerSize}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}">${meta.i}</div>`;
+    visibleMarkers += 1;
+  }
+
+  mountTileSet(html);
+  overlay.innerHTML = overlayHtml;
   const note = document.getElementById("tm-note");
-  if(note) note.textContent = `Disney tiles · z${z}`;
+  if(note){
+    note.textContent = `Disney tiles · z${zoom.toFixed(2)} · rides ${visibleMarkers}`;
+  }
+}
+
+function scheduleTileRender(){
+  if(tileRenderRaf) return;
+  tileRenderRaf = requestAnimationFrame(()=>{
+    tileRenderRaf = 0;
+    renderTileMap();
+  });
 }
 
 function setTileZoom(nextZoom){
   TILE_MAP.zoom = clamp(nextZoom, TILE_MAP.minZoom, TILE_MAP.maxZoom);
-  renderTileMap();
+  clampCenterToCrop();
+  scheduleTileRender();
 }
 
 function initTileMap(){
-  if(TILE_MAP.mounted) return;
   const wrap = document.getElementById("mv-wrap");
   if(!wrap) return;
+  if(wrap.dataset.tileBound === "1") return;
+  wrap.dataset.tileBound = "1";
   TILE_MAP.mounted = true;
 
   wrap.addEventListener("pointerdown",e=>{
@@ -707,7 +864,7 @@ function initTileMap(){
     const size = worldSize(z);
     const clampedY = clamp(nextWorldY, 0, size);
     TILE_MAP.center = unprojectWorld(nextWorldX, clampedY, z);
-    renderTileMap();
+    scheduleTileRender();
   });
 
   const endPointer = e=>{
@@ -718,7 +875,18 @@ function initTileMap(){
   wrap.addEventListener("pointercancel",endPointer);
   wrap.addEventListener("wheel",e=>{
     e.preventDefault();
-    setTileZoom(TILE_MAP.zoom + (e.deltaY < 0 ? 1 : -1));
+    if(e.ctrlKey || e.metaKey){
+      const ZOOM_SENSITIVITY = 0.004;
+      setTileZoom(TILE_MAP.zoom + (-e.deltaY * ZOOM_SENSITIVITY));
+      return;
+    }
+    const z = TILE_MAP.zoom;
+    const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
+    const nextWorldX = centerWorld.x + e.deltaX;
+    const nextWorldY = centerWorld.y + e.deltaY;
+    const size = worldSize(z);
+    TILE_MAP.center = unprojectWorld(nextWorldX, clamp(nextWorldY, 0, size), z);
+    scheduleTileRender();
   },{passive:false});
 }
 
@@ -965,6 +1133,15 @@ async function loadCoords(){
     const r=await fetch("/api/coords");
     const coords=await r.json();
     if(coords&&Object.keys(coords).length)set({coords});
+  }catch{}
+}
+
+async function loadTileCropBounds(){
+  try{
+    const r = await fetch("/api/tile-crop-bounds");
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j && j.bounds) set({ cropBounds: j });
   }catch{}
 }
 
@@ -1419,8 +1596,8 @@ function draw(){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="mv-wrap" id="mv-wrap">`;
-    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom+1)">+</button><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom-1)">−</button></div>`;
-    h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div></div>`;
+    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(Math.ceil(TILE_MAP.zoom+0.01))">+</button><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(Math.floor(TILE_MAP.zoom-0.01))">−</button></div>`;
+    h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
     h+=`<div class="tm-note" id="tm-note">Disney tiles</div>`;
     h+=`</div>`;
   }
@@ -1436,6 +1613,7 @@ function draw(){
 draw();
 fetchLive();
 loadCoords();
+loadTileCropBounds();
 loadSubscription();
 initAutoRefresh();
 initPullToRefresh();
