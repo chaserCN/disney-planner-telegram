@@ -909,6 +909,19 @@ function currentCollectIntervalMinutes(paris) {
   return isFastCollectDay(paris || getParisDateParts(new Date())) ? 5 : SLOW_COLLECT_EVERY_MINUTES;
 }
 
+function blendedDailyPrecipitationRisk(hours) {
+  const probs = hours
+    .filter(hour => {
+      if (!hour || typeof hour.time !== "string") return false;
+      const hh = Number(hour.time.slice(11, 13));
+      return Number.isFinite(hh) && hh >= 10 && hh <= 20;
+    })
+    .map(hour => Number.isFinite(hour.precipitation_probability) ? hour.precipitation_probability : null)
+    .filter(prob => prob != null);
+  if (!probs.length) return null;
+  return Math.max(...probs);
+}
+
 // Use a point between Disneyland Park and Walt Disney Studios so Open-Meteo
 // resolves to a grid cell that better represents the full resort.
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8699&longitude=2.7776&current=temperature_2m,weather_code,precipitation&hourly=temperature_2m,precipitation_probability,weather_code&daily=sunrise,sunset,temperature_2m_min,temperature_2m_max,precipitation_probability_max&timezone=Europe%2FParis";
@@ -958,6 +971,13 @@ async function getWeather() {
         code: Number.isFinite(hourly.weather_code?.[i]) ? hourly.weather_code[i] : null
       });
     }
+  }
+
+  for (const day of daysByDate.values()) {
+    const blendedRisk = blendedDailyPrecipitationRisk(day.hours);
+    day.precipitation_probability_max = Number.isFinite(blendedRisk)
+      ? Math.round(blendedRisk * 10) / 10
+      : day.precipitation_probability_max;
   }
 
   const days = [...daysByDate.values()].filter(day => day.date >= paris.localDate).slice(0, 7);
