@@ -181,8 +181,16 @@
   .tm-set.active { opacity:1; }
   .tm-overlay { position:absolute; inset:0; pointer-events:auto; }
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
-  .tm-pt { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; cursor:pointer; }
-  .tm-pt.sel { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); z-index:7; }
+  .tm-pt { position:absolute; transform:translate(-50%,-50%); font-size:10px; line-height:1; cursor:pointer; }
+  .tm-pt .body { width:100%; height:100%; border-radius:999px; border:2px solid #fff; box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); overflow:hidden; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:0.15em; padding:0 0.35em; box-sizing:border-box; }
+  .tm-pt.sel .body { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); }
+  .tm-pt.sel { z-index:7; }
+  .tm-pt .rt { font-weight:800; font-size:0.85em; letter-spacing:-0.02em; }
+  .tm-pt .ic { font-size:0.95em; }
+  .tm-pt.t-S .body { background:#8b5cf6; color:#fff; }
+  .tm-pt.t-A .body { background:#a78bfa; color:#fff; }
+  .tm-pt.t-B .body { background:#c4b5fd; color:#2e1065; }
+  .tm-pt.t-C .body { background:#94a3b8; color:#1e293b; }
   .tm-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:4; }
   .tm-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
@@ -983,7 +991,7 @@ function renderTileMap(){
     const sel = S.msel===name ? " sel" : "";
     const lv = liveRide(name, meta);
     const slv = singleRide(name, meta);
-    const badgeOffset = Math.max(2, Math.round(markerSize * 0.12));
+    const badgeOffset = -Math.max(4, Math.round(markerSize * 0.18));
     let waitBadge = "";
     if(lv){
       if(!lv.is_open){
@@ -996,7 +1004,8 @@ function renderTileMap(){
         waitBadge = `<span class="mv-wt" style="top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0);background:${color};color:${tx}">${w===0?'0':w}${sPart}</span>`;
       }
     }
-    overlayHtml += `<div class="tm-pt t-${meta.t}${sel}" data-ride="${attr(name)}" style="left:${px}px;top:${py}px;width:${markerSize}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}">${meta.i}${waitBadge}</div>`;
+    const pillW = Math.round(markerSize * 1.55);
+    overlayHtml += `<div class="tm-pt t-${meta.t}${sel}" data-ride="${attr(name)}" style="left:${px}px;top:${py}px;width:${pillW}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}"><div class="body"><span class="rt">${TIER_STARS[meta.t]}</span><span class="ic">${meta.i}</span></div>${waitBadge}</div>`;
     visibleMarkers += 1;
   }
 

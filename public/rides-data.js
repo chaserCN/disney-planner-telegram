@@ -7,7 +7,7 @@
     "Big Thunder Mountain":       {id:25,t:"S",tp:"горки",p:"d",l:"Frontierland",bh:[9,10,20,21],ap:70,i:"⛰️",sr:0,pa:1},
     "Hyperspace Mountain":        {id:8,srid:7278,t:"S",tp:"горки",p:"d",l:"Discoveryland",bh:[9,10,21,22],ap:60,i:"🚀",sr:1,pa:1},
     "Frozen Ever After":          {id:15413,t:"S",tp:"сюжет лодки",p:"s",l:"World of Frozen",bh:[9,10,20],ap:80,i:"❄️",sr:0,pa:1},
-    "Phantom Manor":              {id:26,t:"S",tp:"сюжет",p:"d",l:"Frontierland",bh:[9,10,12,13,20],ap:45,i:"👻",sr:0,pa:0},
+    "Phantom Manor":              {id:26,t:"A",tp:"сюжет",p:"d",l:"Frontierland",bh:[9,10,12,13,20],ap:45,i:"👻",sr:0,pa:0},
     "Pirates of the Caribbean":   {id:3,t:"A",tp:"сюжет лодки",p:"d",l:"Adventureland",bh:[9,10,13,14,20],ap:40,i:"🏴‍☠️",sr:0,pa:1},
     "Indiana Jones":              {id:2,srid:7306,t:"A",tp:"горки",p:"d",l:"Adventureland",bh:[9,10,20,21],ap:50,i:"🏺",sr:1,pa:0},
     "Peter Pan's Flight":         {id:22,t:"A",tp:"сюжет",p:"d",l:"Fantasyland",bh:[9,21,22],ap:75,i:"🧚",sr:0,pa:1},
