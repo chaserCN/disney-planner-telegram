@@ -179,9 +179,10 @@
   .tm-tiles { position:absolute; inset:0; overflow:hidden; }
   .tm-set { position:absolute; inset:0; opacity:1; }
   .tm-set.active { opacity:1; }
-  .tm-overlay { position:absolute; inset:0; pointer-events:none; }
+  .tm-overlay { position:absolute; inset:0; pointer-events:auto; }
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
-  .tm-pt { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; }
+  .tm-pt { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; cursor:pointer; }
+  .tm-pt.sel { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); z-index:7; }
   .tm-note { position:absolute; left:8px; bottom:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; z-index:3; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
   .mv-img { display:block; width:100%; height:auto; -webkit-user-drag:none; pointer-events:none; }
@@ -623,6 +624,7 @@ const TILE_POINTERS = new Map();
 let tilePanStart = null;
 let tileRenderRaf = 0;
 let tileSetSeq = 0;
+let tileTapStart = null;
 const LEGACY_GEO_CACHE = new Map();
 let geoMsgTimer = null;
 let userPosTimer = null;
@@ -725,6 +727,22 @@ async function startHeadingTracking(){
   window.addEventListener("deviceorientationabsolute", onOrientation, true);
   window.addEventListener("deviceorientation", onOrientation, true);
   headingWatchAttached = true;
+}
+
+function rideGeoByName(name){
+  const coord = S.coords[name];
+  if(!coord) return null;
+  if(Number.isFinite(coord.lat) && Number.isFinite(coord.lng)) return { lat: coord.lat, lng: coord.lng };
+  if(Number.isFinite(coord.mx) && Number.isFinite(coord.my)){
+    const cacheKey = `${coord.mx}:${coord.my}`;
+    let geo = LEGACY_GEO_CACHE.get(cacheKey);
+    if(!geo){
+      geo = calibrationPredict(coord.mx, coord.my);
+      if(geo) LEGACY_GEO_CACHE.set(cacheKey, geo);
+    }
+    return geo || null;
+  }
+  return null;
 }
 
 function mountTileSet(html){
@@ -831,30 +849,34 @@ function renderTileMap(){
   const zoomNorm = (zoom - TILE_MAP.minZoom) / Math.max(1, TILE_MAP.maxZoom - TILE_MAP.minZoom);
   const markerSize = Math.round(16 + zoomNorm * 12); // 16..28 px
   const markerFont = Math.round(9 + zoomNorm * 6);   // 9..15 px
-  for(const [name, meta] of Object.entries(R)){
-    const coord = S.coords[name];
-    if(!coord) continue;
+  const mapMarkers = Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t));
+  for(const [name, meta] of mapMarkers){
+    const geo = rideGeoByName(name);
+    if(!geo) continue;
     if(S.pf !== "all" && meta.p !== S.pf) continue;
     if(TIER_STARS[meta.t] < minStars) continue;
-
-    let geo = null;
-    if(Number.isFinite(coord.lat) && Number.isFinite(coord.lng)){
-      geo = { lat: coord.lat, lng: coord.lng };
-    } else if(Number.isFinite(coord.mx) && Number.isFinite(coord.my)){
-      const cacheKey = `${coord.mx}:${coord.my}`;
-      geo = LEGACY_GEO_CACHE.get(cacheKey);
-      if(!geo){
-        geo = calibrationPredict(coord.mx, coord.my);
-        if(geo) LEGACY_GEO_CACHE.set(cacheKey, geo);
-      }
-    }
-    if(!geo) continue;
 
     const world = projectLatLng(geo.lat, geo.lng, zoom);
     const px = world.x - topLeftX;
     const py = world.y - topLeftY;
     if(px < -20 || px > vw + 20 || py < -20 || py > vh + 20) continue;
-    overlayHtml += `<div class="tm-pt t-${meta.t}" style="left:${px}px;top:${py}px;width:${markerSize}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}">${meta.i}</div>`;
+    const sel = S.msel===name ? " sel" : "";
+    const lv = liveRide(name, meta);
+    const slv = singleRide(name, meta);
+    const badgeOffset = Math.max(2, Math.round(markerSize * 0.12));
+    let waitBadge = "";
+    if(lv){
+      if(!lv.is_open){
+        waitBadge = `<span class="mv-wt off" style="top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0)">✕</span>`;
+      } else {
+        const w = lv.wait_time;
+        const color = wc(w);
+        const tx = w > 40 ? "#fff" : "#0f172a";
+        const sPart = slv && slv.is_open ? `/${singleWaitText(slv.wait_time)}` : "";
+        waitBadge = `<span class="mv-wt" style="top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0);background:${color};color:${tx}">${w===0?'0':w}${sPart}</span>`;
+      }
+    }
+    overlayHtml += `<div class="tm-pt t-${meta.t}${sel}" data-ride="${attr(name)}" style="left:${px}px;top:${py}px;width:${markerSize}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}">${meta.i}${waitBadge}</div>`;
     visibleMarkers += 1;
   }
 
@@ -870,6 +892,44 @@ function renderTileMap(){
         </svg>`;
       }
       overlayHtml += `<div class="usr-pt" style="left:${ux}px;top:${uy}px"></div>`;
+    }
+  }
+
+  if(S.msel && R[S.msel]){
+    const n=S.msel, m=R[n];
+    const geo=rideGeoByName(n);
+    if(geo){
+      const world = projectLatLng(geo.lat, geo.lng, zoom);
+      const px = world.x - topLeftX;
+      const py = world.y - topLeftY;
+      if(px >= -40 && px <= vw + 40 && py >= -40 && py <= vh + 40){
+        const lv=liveRide(n,m);
+        const slv=singleRide(n,m);
+        const paid=paidRide(n,m);
+        let badge='';
+        if(S.ld)badge='<span class="lv lv-off">⏳ ждём live</span>';
+        else if(!lv)badge='<span class="lv lv-off">нет live</span>';
+        else if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
+        else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
+        const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
+        const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
+        const popupW=Math.min(280, vw-16);
+        const popupH=170;
+        const gap=16;
+        const flipUp=py+gap+popupH>vh-8;
+        const top=flipUp?Math.max(8,py-gap-popupH):Math.min(vh-popupH-8,py+gap);
+        const left=Math.min(vw-popupW-8,Math.max(8,px-popupW/2));
+        const ax=Math.min(popupW-14,Math.max(4,px-left-5));
+        overlayHtml += `<div class="mv-popup ${flipUp?'up':'down'}" style="left:${left}px;top:${top}px;width:${popupW}px">
+          <span class="ar" style="left:${ax}px"></span>
+          <button class="cl" data-close="1">×</button>
+          <div class="tp"><span class="em">${m.i}</span><div style="flex:1;min-width:0"><div class="nm">${esc(n)}</div></div></div>
+          <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>
+          <div class="rw"><span class="tier t-${m.t}">${T[m.t].stars}</span>${fastTag}</div>
+          <div class="rw" style="margin-top:5px">${badge}${singleBadge}</div>
+          <div class="bh">${baseText(m,lv)}</div>
+        </div>`;
+      }
     }
   }
 
@@ -919,6 +979,7 @@ function initTileMap(){
 
   wrap.addEventListener("pointerdown",e=>{
     if(e.target.closest(".mv-tool")) return;
+    tileTapStart = { x:e.clientX, y:e.clientY, moved:false, target:e.target };
     TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(TILE_POINTERS.size === 1){
       tilePanStart = {
@@ -936,6 +997,9 @@ function initTileMap(){
     if(TILE_POINTERS.size !== 1 || !tilePanStart) return;
     const dx = e.clientX - tilePanStart.x;
     const dy = e.clientY - tilePanStart.y;
+    if(tileTapStart && (Math.abs(e.clientX - tileTapStart.x) > 4 || Math.abs(e.clientY - tileTapStart.y) > 4)){
+      tileTapStart.moved = true;
+    }
     const z = TILE_MAP.zoom;
     const startWorld = projectLatLng(tilePanStart.center.lat, tilePanStart.center.lng, z);
     const nextWorldX = startWorld.x - dx;
@@ -947,8 +1011,21 @@ function initTileMap(){
   });
 
   const endPointer = e=>{
+    const tap = tileTapStart && !tileTapStart.moved;
+    const target = (tileTapStart && tileTapStart.target) || e.target;
     TILE_POINTERS.delete(e.pointerId);
     if(TILE_POINTERS.size === 0) tilePanStart = null;
+    tileTapStart = null;
+    if(!tap) return;
+    if(target.closest(".mv-tool")) return;
+    if(target.closest("[data-close]")) { mvClosePopup(); return; }
+    const marker = target.closest(".tm-pt");
+    if(marker){
+      const name = marker.getAttribute("data-ride");
+      if(name) mvPickRide(name);
+      return;
+    }
+    if(!target.closest(".mv-popup")) mvClosePopup();
   };
   wrap.addEventListener("pointerup",endPointer);
   wrap.addEventListener("pointercancel",endPointer);
@@ -1530,22 +1607,13 @@ function mvPickRide(name){
 }
 
 function focusOnMap(name){
-  if(!S.coords[name])return;
+  const geo = rideGeoByName(name);
+  if(!geo)return;
   set({tab:"map",msel:name,pf:"all",mrt:"all"});
   requestAnimationFrame(()=>{
-    const wrap=document.getElementById("mv-wrap");
-    const img=document.getElementById("mv-img");
-    if(!wrap||!img)return;
-    const center=()=>{
-      const c=S.coords[name];if(!c)return;
-      const cw=wrap.clientWidth, ch=wrap.clientHeight;
-      const baseW=cw, baseH=img.naturalHeight*(cw/img.naturalWidth);
-      MV.tx=cw/2-(c.mx/100)*baseW*MV.scale;
-      MV.ty=ch/2-(c.my/100)*baseH*MV.scale;
-      mvClampPan();mvApply();
-    };
-    if(img.naturalWidth)center();
-    else img.addEventListener("load",center,{once:true});
+    TILE_MAP.center = { lat: geo.lat, lng: geo.lng };
+    clampCenterToCrop();
+    scheduleTileRender();
   });
 }
 
