@@ -30,6 +30,7 @@
     padding-top: var(--safe-top);
     padding-bottom: var(--safe-bot);
   }
+  body.modal-open { overflow:hidden; }
   .app { max-width: 520px; margin:0 auto; padding: 10px 14px 20px; }
 
   /* Header */
@@ -57,7 +58,7 @@
   .wx-btn:active { background:rgba(255,255,255,.06); }
   .wx { display:inline-flex; align-items:baseline; gap:4px; padding:0 2px; font-size:15px; line-height:1.1; color:var(--mu); flex-shrink:0; user-select:none; white-space:nowrap; }
   .wx .t { font-size:13px; font-weight:500; }
-  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:calc(20px + var(--safe-top)) 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); overflow:auto; }
+  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:calc(20px + var(--safe-top)) 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); overflow:auto; overscroll-behavior:contain; touch-action:pan-y; }
   .wmc { width:min(520px,100%); max-height:min(calc(100vh - var(--safe-top) - var(--safe-bot) - 32px),760px); overflow:auto; background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(11,14,24,.98)); border:1px solid var(--bd); border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.55); padding:14px 16px 12px; margin-top:auto; }
   .wmh { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
   .wmtt { font-size:18px; font-weight:800; }
@@ -72,10 +73,10 @@
   .wmsm .it { padding:10px 11px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(148,163,184,.12); }
   .wmsm .lb { font-size:11px; font-weight:700; color:var(--mu); text-transform:uppercase; letter-spacing:.04em; }
   .wmsm .vl { font-size:17px; font-weight:800; margin-top:3px; }
-  .wch { padding:9px 12px 8px; border-radius:14px; background:rgba(255,255,255,.04); border:1px solid rgba(148,163,184,.12); }
-  .wch .tt { font-size:13px; font-weight:800; margin-bottom:4px; }
+  .wch { padding:7px 12px 6px; border-radius:14px; background:rgba(255,255,255,.04); border:1px solid rgba(148,163,184,.12); }
+  .wch .tt { font-size:13px; font-weight:800; margin-bottom:2px; }
   .wch .sb { font-size:11px; color:var(--mu); margin-top:8px; }
-  .wch.wx-cond { padding-top:10px; }
+  .wch.wx-cond { padding-top:4px; }
   /* Park section */
   .ps { margin-bottom:14px; }
   .psh { display:flex; align-items:center; gap:6px; padding-bottom:5px; margin-bottom:6px; }
@@ -1112,6 +1113,7 @@ function rideWaitSort(entries,includeSingle){
 
 function draw(){
   const $=document.getElementById("app");
+  document.body.classList.toggle("modal-open", !!S.weatherOpen);
   const fl=Object.entries(R).filter(([_,m])=>S.pf==="all"||m.p===S.pf).sort((a,b)=>"SABC".indexOf(a[1].t)-"SABC".indexOf(b[1].t));
   const bp=k=>fl.filter(([_,m])=>m.p===k);
   const hasLive=!!S.live&&Object.keys(S.live).length>0;
