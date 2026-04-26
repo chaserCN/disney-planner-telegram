@@ -184,6 +184,8 @@
   .tm-pt { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; cursor:pointer; }
   .tm-pt.sel { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); z-index:7; }
   .tm-note { position:absolute; left:8px; bottom:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; z-index:3; }
+  .tm-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:4; }
+  .tm-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
   .mv-img { display:block; width:100%; height:auto; -webkit-user-drag:none; pointer-events:none; }
   .mv-pt { position:absolute; width:26px; height:26px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 2px 4px rgba(0,0,0,.5); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; }
@@ -615,7 +617,7 @@ const TILE_MAP = {
   mounted: false
 };
 const GEO_TEST_OVERRIDE = {
-  enabled: true,
+  enabled: false,
   lat: 48.865585,
   lng: 2.778777,
   heading: 90
@@ -637,7 +639,7 @@ let lastLiveFetchAt = 0;
 let autoRefreshTimer = null;
 const USER_POS_TTL_MS = 5 * 60 * 1000;
 const LIVE_AUTO_REFRESH_MS = 5 * 60 * 1000;
-function set(p){
+function set(p, opts){
   const prevTab = S.tab;
   const nextTab = Object.prototype.hasOwnProperty.call(p, "tab") ? p.tab : prevTab;
   if(nextTab !== prevTab){
@@ -649,7 +651,7 @@ function set(p){
     const y = Number.isFinite(TAB_SCROLL_Y[nextTab]) ? TAB_SCROLL_Y[nextTab] : 0;
     requestAnimationFrame(()=>window.scrollTo(0,y));
   }
-  if(tg)tg.HapticFeedback?.impactOccurred?.("light");
+  if(!(opts && opts.silent) && tg)tg.HapticFeedback?.impactOccurred?.("light");
 }
 
 function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
@@ -775,7 +777,7 @@ async function startHeadingTracking(){
   const onOrientation = e=>{
     const h = normalizeHeadingFromEvent(e);
     if(!Number.isFinite(h)) return;
-    set({ userHeading: Math.round(h * 10) / 10 });
+    set({ userHeading: Math.round(h * 10) / 10 }, { silent: true });
     scheduleTileRender();
   };
   window.addEventListener("deviceorientationabsolute", onOrientation, true);
@@ -1054,7 +1056,42 @@ function initTileMap(){
   wrap.addEventListener("pointermove",e=>{
     if(!TILE_POINTERS.has(e.pointerId)) return;
     TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(TILE_POINTERS.size !== 1 || !tilePanStart) return;
+    if(TILE_POINTERS.size === 2){
+      const [a,b] = [...TILE_POINTERS.values()];
+      const cx = (a.x + b.x) / 2;
+      const cy = (a.y + b.y) / 2;
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if(!tilePanStart || !Number.isFinite(tilePanStart.pinchDist)){
+        const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, TILE_MAP.zoom);
+        tilePanStart = {
+          pinchDist: dist,
+          zoom: TILE_MAP.zoom,
+          centerWorld,
+          midpoint: { x: cx, y: cy }
+        };
+        if(tileTapStart) tileTapStart.moved = true;
+        return;
+      }
+      if(tileTapStart) tileTapStart.moved = true;
+      const zoomDelta = Math.log2(Math.max(1, dist) / Math.max(1, tilePanStart.pinchDist));
+      const nextZoom = clamp(tilePanStart.zoom + zoomDelta, TILE_MAP.minZoom, TILE_MAP.maxZoom);
+      const prevZoom = TILE_MAP.zoom;
+      TILE_MAP.zoom = nextZoom;
+      const scale = 2 ** (nextZoom - tilePanStart.zoom);
+      const viewportDx = cx - tilePanStart.midpoint.x;
+      const viewportDy = cy - tilePanStart.midpoint.y;
+      const nextWorldX = tilePanStart.centerWorld.x - (viewportDx / scale);
+      const nextWorldY = tilePanStart.centerWorld.y - (viewportDy / scale);
+      const size = worldSize(nextZoom);
+      TILE_MAP.center = unprojectWorld(nextWorldX, clamp(nextWorldY, 0, size), nextZoom);
+      if(prevZoom !== nextZoom){
+        clampCenterToCrop();
+        scheduleMapViewSave();
+      }
+      scheduleTileRender();
+      return;
+    }
+    if(TILE_POINTERS.size !== 1 || !tilePanStart || !Number.isFinite(tilePanStart.x)) return;
     const dx = e.clientX - tilePanStart.x;
     const dy = e.clientY - tilePanStart.y;
     if(tileTapStart && (Math.abs(e.clientX - tileTapStart.x) > 4 || Math.abs(e.clientY - tileTapStart.y) > 4)){
@@ -1075,7 +1112,16 @@ function initTileMap(){
     const tap = tileTapStart && !tileTapStart.moved;
     const target = (tileTapStart && tileTapStart.target) || e.target;
     TILE_POINTERS.delete(e.pointerId);
-    if(TILE_POINTERS.size === 0) tilePanStart = null;
+    if(TILE_POINTERS.size === 1){
+      const [rest] = [...TILE_POINTERS.values()];
+      tilePanStart = {
+        x: rest.x,
+        y: rest.y,
+        center: { ...TILE_MAP.center }
+      };
+    } else if(TILE_POINTERS.size === 0){
+      tilePanStart = null;
+    }
     tileTapStart = null;
     if(!tap) return;
     if(target.closest(".mv-tool")) return;
@@ -1819,6 +1865,7 @@ function draw(){
     h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
+    h+=`<div class="tm-zoom"><button onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom+0.5)">+</button><button onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom-0.5)">−</button></div>`;
     h+=`<div class="tm-note" id="tm-note">Disney tiles</div>`;
     h+=`</div>`;
   }
