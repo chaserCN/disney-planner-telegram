@@ -1119,7 +1119,7 @@ function ensureMarkerBadge(el){
 function syncMarkerNode(el, marker, counterRotate){
   const { name, meta, px, py, markerSize, markerFont, pillW, waitBadge, selected } = marker;
   const transform = counterRotate ? `translate(-50%,-50%) ${counterRotate}` : "translate(-50%,-50%)";
-  const iconClass = meta.glow ? "ic glow" : "ic";
+  const iconClass = "ic glow";
   el.className = `tm-pt t-${meta.t}${selected ? " sel" : ""}`;
   el.dataset.ride = name;
   el.title = name;
