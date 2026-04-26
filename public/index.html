@@ -174,7 +174,7 @@
   .tips b { color:var(--tx); }
 
   /* Map view */
-  .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; margin-bottom:32px; }
+  .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; margin-bottom:32px; }
   .tm-viewport { position:absolute; inset:0; overflow:hidden; }
   .tm-tiles { position:absolute; inset:0; overflow:hidden; }
   .tm-set { position:absolute; inset:0; opacity:1; }
@@ -1106,6 +1106,9 @@ function initTileMap(){
   if(wrap.dataset.tileBound === "1") return;
   wrap.dataset.tileBound = "1";
   TILE_MAP.mounted = true;
+  wrap.addEventListener("contextmenu",e=>e.preventDefault());
+  wrap.addEventListener("dragstart",e=>e.preventDefault());
+  wrap.addEventListener("selectstart",e=>e.preventDefault());
 
   wrap.addEventListener("pointerdown",e=>{
     if(e.target.closest(".mv-tool") || e.target.closest(".tm-zoom")) return;
