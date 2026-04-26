@@ -180,9 +180,10 @@
   .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; margin-bottom:32px; }
   .tm-viewport { position:absolute; left:-50%; top:-50%; width:200%; height:200%; transform-origin:50% 50%; will-change:transform; }
   .tm-tiles { position:absolute; inset:0; overflow:hidden; }
-  .tm-set { position:absolute; inset:0; opacity:1; }
-  .tm-set.active { opacity:1; }
+  .tm-layer { position:absolute; inset:0; }
   .tm-overlay { position:absolute; inset:0; pointer-events:auto; }
+  .tm-marker-layer, .tm-user-layer, .tm-popup-layer { position:absolute; inset:0; }
+  .tm-user-layer { pointer-events:none; }
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
   .tm-pt { position:absolute; transform:translate(-50%,-50%); font-size:10px; line-height:1; cursor:pointer; background:transparent; }
   .tm-pt .body { width:100%; height:100%; box-sizing:border-box; border-radius:9999px; border:2px solid #fff; box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); overflow:hidden; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:0.15em; padding:0 0.35em; }
@@ -198,7 +199,6 @@
   .tm-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:4; }
   .tm-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .tm-compass { position:absolute; left:8px; top:8px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(0,0,0,.65); color:#fff; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; z-index:5; box-shadow:0 1px 3px rgba(0,0,0,.4); }
-  .tm-debug { position:absolute; left:8px; bottom:8px; max-width:60%; padding:6px 8px; background:rgba(0,0,0,.7); color:#7dd3fc; font-family:ui-monospace,monospace; font-size:10px; line-height:1.35; border-radius:6px; z-index:6; pointer-events:none; white-space:pre; }
   .tm-compass svg { width:24px; height:24px; transition:transform .25s ease; display:block; }
   .tm-compass .n { fill:#ef4444; }
   .tm-compass .s { fill:#e2e8f0; }
@@ -711,10 +711,11 @@ const GEO_TEST_OVERRIDE = {
 };
 const MAP_VIEW_STORAGE_KEY = "dlp.map.view.v1";
 const TILE_OVERSCAN = 1;
+const TILE_TRANSITION_WAIT_COUNT = 12;
+const TILE_TRANSITION_TIMEOUT_MS = 450;
 const TILE_POINTERS = new Map();
 let tilePanStart = null;
 let tileRenderRaf = 0;
-let tileSetSeq = 0;
 let tileTapStart = null;
 let mapViewSaveTimer = null;
 const LEGACY_GEO_CACHE = new Map();
@@ -727,6 +728,25 @@ let lastLiveFetchAt = 0;
 let autoRefreshTimer = null;
 const USER_POS_TTL_MS = 5 * 60 * 1000;
 const LIVE_AUTO_REFRESH_MS = 5 * 60 * 1000;
+const TILE_DOM = {
+  root: null,
+  currentLayer: null,
+  previousLayer: null,
+  cache: new Map(),
+  currentZoom: null,
+  currentRangeKey: "",
+  cleanupTimer: 0,
+  transitionToken: 0
+};
+const OVERLAY_DOM = {
+  root: null,
+  markerLayer: null,
+  userLayer: null,
+  popupLayer: null,
+  markerCache: new Map()
+};
+let MAP_MARKER_ENTRIES = null;
+let MAP_MARKER_COORDS_REF = null;
 function set(p, opts){
   const prevTab = S.tab;
   const nextTab = Object.prototype.hasOwnProperty.call(p, "tab") ? p.tab : prevTab;
@@ -895,39 +915,93 @@ function rideGeoByName(name){
   return null;
 }
 
-function mountTileSet(html){
-  const layer = document.getElementById("tm-tiles");
-  if(!layer) return;
-  if(!html || !html.trim()) return;
-  const set = document.createElement("div");
-  set.className = "tm-set";
-  set.dataset.id = String(++tileSetSeq);
-  set.innerHTML = html;
-  const prevActive = layer.querySelector(".tm-set.active");
-  layer.appendChild(set);
+function getMapMarkerEntries(){
+  if(MAP_MARKER_ENTRIES && MAP_MARKER_COORDS_REF === S.coords) return MAP_MARKER_ENTRIES;
+  MAP_MARKER_COORDS_REF = S.coords;
+  MAP_MARKER_ENTRIES = Object.entries(R)
+    .map(([name, meta])=>{
+      const geo = rideGeoByName(name);
+      return geo ? { name, meta, geo } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b)=>"CBAS".indexOf(a.meta.t) - "CBAS".indexOf(b.meta.t));
+  return MAP_MARKER_ENTRIES;
+}
 
+function ensureTileDom(root){
+  if(TILE_DOM.root === root && TILE_DOM.currentLayer && TILE_DOM.previousLayer) return;
+  if(TILE_DOM.cleanupTimer){
+    clearTimeout(TILE_DOM.cleanupTimer);
+    TILE_DOM.cleanupTimer = 0;
+  }
+  TILE_DOM.root = root;
+  TILE_DOM.cache = new Map();
+  TILE_DOM.currentZoom = null;
+  TILE_DOM.currentRangeKey = "";
+  TILE_DOM.transitionToken += 1;
+  root.replaceChildren();
+  const previousLayer = document.createElement("div");
+  previousLayer.className = "tm-layer";
+  const currentLayer = document.createElement("div");
+  currentLayer.className = "tm-layer";
+  root.append(previousLayer, currentLayer);
+  TILE_DOM.previousLayer = previousLayer;
+  TILE_DOM.currentLayer = currentLayer;
+}
+
+function ensureOverlayDom(root){
+  if(OVERLAY_DOM.root === root && OVERLAY_DOM.markerLayer && OVERLAY_DOM.userLayer && OVERLAY_DOM.popupLayer) return;
+  OVERLAY_DOM.root = root;
+  OVERLAY_DOM.markerCache = new Map();
+  root.replaceChildren();
+  const markerLayer = document.createElement("div");
+  markerLayer.className = "tm-marker-layer";
+  const userLayer = document.createElement("div");
+  userLayer.className = "tm-user-layer";
+  const popupLayer = document.createElement("div");
+  popupLayer.className = "tm-popup-layer";
+  root.append(markerLayer, userLayer, popupLayer);
+  OVERLAY_DOM.markerLayer = markerLayer;
+  OVERLAY_DOM.userLayer = userLayer;
+  OVERLAY_DOM.popupLayer = popupLayer;
+}
+
+function clearPreviousTiles(){
+  if(TILE_DOM.cleanupTimer){
+    clearTimeout(TILE_DOM.cleanupTimer);
+    TILE_DOM.cleanupTimer = 0;
+  }
+  TILE_DOM.transitionToken += 1;
+  if(TILE_DOM.previousLayer) TILE_DOM.previousLayer.replaceChildren();
+}
+
+function queuePreviousTileCleanup(){
+  if(!TILE_DOM.previousLayer || !TILE_DOM.previousLayer.childElementCount) return;
+  if(TILE_DOM.cleanupTimer){
+    clearTimeout(TILE_DOM.cleanupTimer);
+    TILE_DOM.cleanupTimer = 0;
+  }
+  const token = ++TILE_DOM.transitionToken;
   let done = false;
-  const activate = ()=>{
-    if(done) return;
+  const finish = ()=>{
+    if(done || token !== TILE_DOM.transitionToken) return;
     done = true;
-    set.classList.add("active");
-    if(prevActive && prevActive !== set) prevActive.remove();
-    // Keep DOM tidy in case of rapid zoom/pan bursts.
-    [...layer.querySelectorAll(".tm-set")].forEach(node=>{
-      if(node !== set && !node.classList.contains("active")) node.remove();
-    });
+    if(TILE_DOM.cleanupTimer){
+      clearTimeout(TILE_DOM.cleanupTimer);
+      TILE_DOM.cleanupTimer = 0;
+    }
+    if(TILE_DOM.previousLayer) TILE_DOM.previousLayer.replaceChildren();
   };
-
-  const imgs = [...set.querySelectorAll("img")];
+  const imgs = [...TILE_DOM.currentLayer.querySelectorAll("img")];
   if(!imgs.length){
-    activate();
+    finish();
     return;
   }
-  const waitCount = Math.min(12, imgs.length);
+  const waitCount = Math.min(TILE_TRANSITION_WAIT_COUNT, imgs.length);
   let pending = waitCount;
   const onReady = ()=>{
     pending -= 1;
-    if(pending <= 0) activate();
+    if(pending <= 0) finish();
   };
   for(let i = 0; i < waitCount; i += 1){
     const img = imgs[i];
@@ -937,7 +1011,204 @@ function mountTileSet(html){
       img.addEventListener("error", onReady, { once: true });
     }
   }
-  setTimeout(activate, 450);
+  TILE_DOM.cleanupTimer = setTimeout(finish, TILE_TRANSITION_TIMEOUT_MS);
+}
+
+function moveCurrentTilesToPrevious(){
+  if(!TILE_DOM.currentLayer || !TILE_DOM.previousLayer) return;
+  clearPreviousTiles();
+  if(!TILE_DOM.currentLayer.childElementCount) return;
+  TILE_DOM.previousLayer.replaceChildren(...TILE_DOM.currentLayer.childNodes);
+  TILE_DOM.cache.clear();
+  TILE_DOM.currentRangeKey = "";
+}
+
+function applyTilePosition(img, left, top, size){
+  const leftPx = `${left}px`;
+  const topPx = `${top}px`;
+  const sizePx = `${size}px`;
+  if(img.style.left !== leftPx) img.style.left = leftPx;
+  if(img.style.top !== topPx) img.style.top = topPx;
+  if(img.style.width !== sizePx) img.style.width = sizePx;
+  if(img.style.height !== sizePx) img.style.height = sizePx;
+}
+
+function makeTileImage(desc){
+  const img = document.createElement("img");
+  img.className = "tm-tile";
+  img.loading = "eager";
+  img.decoding = "async";
+  img.alt = "";
+  img.onerror = function(){ this.style.display = "none"; };
+  img.dataset.key = desc.key;
+  img.dataset.tx = String(desc.tx);
+  img.dataset.ty = String(desc.ty);
+  img.dataset.src = desc.src;
+  img.src = desc.src;
+  img.style.display = "";
+  applyTilePosition(img, desc.left, desc.top, desc.size);
+  return img;
+}
+
+function syncTiles(descriptors){
+  const keep = new Set();
+  const fragment = document.createDocumentFragment();
+  for(const desc of descriptors){
+    keep.add(desc.key);
+    let img = TILE_DOM.cache.get(desc.key);
+    if(!img){
+      img = makeTileImage(desc);
+      TILE_DOM.cache.set(desc.key, img);
+      fragment.appendChild(img);
+    } else {
+      img.style.display = "";
+      if(img.dataset.src !== desc.src){
+        img.dataset.src = desc.src;
+        img.src = desc.src;
+      }
+      img.dataset.tx = String(desc.tx);
+      img.dataset.ty = String(desc.ty);
+      applyTilePosition(img, desc.left, desc.top, desc.size);
+    }
+  }
+  if(fragment.childNodes.length) TILE_DOM.currentLayer.appendChild(fragment);
+  for(const [key, img] of TILE_DOM.cache){
+    if(keep.has(key)) continue;
+    img.remove();
+    TILE_DOM.cache.delete(key);
+  }
+}
+
+function updateCurrentTilePositions(topLeftX, topLeftY, visualScale){
+  const size = TILE_SIZE * visualScale;
+  for(const img of TILE_DOM.cache.values()){
+    const tx = Number(img.dataset.tx);
+    const ty = Number(img.dataset.ty);
+    applyTilePosition(img, tx * TILE_SIZE * visualScale - topLeftX, ty * TILE_SIZE * visualScale - topLeftY, size);
+    img.style.display = "";
+  }
+}
+
+function buildWaitBadgeState(lv, slv, badgeOffset){
+  if(!lv) return null;
+  if(!lv.is_open){
+    return {
+      className: "mv-wt off",
+      style: `top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0)`,
+      text: "✕"
+    };
+  }
+  const w = lv.wait_time;
+  return {
+    className: "mv-wt",
+    style: `top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0);background:${wc(w)};color:${w > 40 ? "#fff" : "#0f172a"}`,
+    text: `${w === 0 ? "0" : w}${slv && slv.is_open ? `/${singleWaitText(slv.wait_time)}` : ""}`
+  };
+}
+
+function ensureMarkerBadge(el){
+  if(el._badgeEl) return el._badgeEl;
+  const badge = document.createElement("span");
+  el._badgeEl = badge;
+  el.appendChild(badge);
+  return badge;
+}
+
+function syncMarkerNode(el, marker, counterRotate){
+  const { name, meta, px, py, markerSize, markerFont, pillW, waitBadge, selected } = marker;
+  const transform = counterRotate ? `translate(-50%,-50%) ${counterRotate}` : "translate(-50%,-50%)";
+  const iconClass = meta.glow ? "ic glow" : "ic";
+  el.className = `tm-pt t-${meta.t}${selected ? " sel" : ""}`;
+  el.dataset.ride = name;
+  el.title = name;
+  if(el.style.left !== `${px}px`) el.style.left = `${px}px`;
+  if(el.style.top !== `${py}px`) el.style.top = `${py}px`;
+  if(el.style.width !== `${pillW}px`) el.style.width = `${pillW}px`;
+  if(el.style.height !== `${markerSize}px`) el.style.height = `${markerSize}px`;
+  if(el.style.fontSize !== `${markerFont}px`) el.style.fontSize = `${markerFont}px`;
+  if(el.style.transform !== transform) el.style.transform = transform;
+  if(el._rt.textContent !== TIER_STARS[meta.t]) el._rt.textContent = TIER_STARS[meta.t];
+  if(el._ic.className !== iconClass) el._ic.className = iconClass;
+  if(el._ic.textContent !== meta.i) el._ic.textContent = meta.i;
+  if(waitBadge){
+    const badge = ensureMarkerBadge(el);
+    if(badge.className !== waitBadge.className) badge.className = waitBadge.className;
+    if(badge.getAttribute("style") !== waitBadge.style) badge.setAttribute("style", waitBadge.style);
+    if(badge.textContent !== waitBadge.text) badge.textContent = waitBadge.text;
+  } else if(el._badgeEl){
+    el._badgeEl.remove();
+    el._badgeEl = null;
+  }
+}
+
+function makeMarkerNode(marker, counterRotate){
+  const el = document.createElement("div");
+  el.innerHTML = `<div class="body"><span class="rt"></span><span class="ic"></span></div>`;
+  el._rt = el.querySelector(".rt");
+  el._ic = el.querySelector(".ic");
+  syncMarkerNode(el, marker, counterRotate);
+  return el;
+}
+
+function syncMarkers(markers, counterRotate){
+  const keep = new Set();
+  const fragment = document.createDocumentFragment();
+  for(const marker of markers){
+    keep.add(marker.name);
+    let el = OVERLAY_DOM.markerCache.get(marker.name);
+    if(!el){
+      el = makeMarkerNode(marker, counterRotate);
+      OVERLAY_DOM.markerCache.set(marker.name, el);
+      fragment.appendChild(el);
+    } else {
+      syncMarkerNode(el, marker, counterRotate);
+    }
+  }
+  if(fragment.childNodes.length) OVERLAY_DOM.markerLayer.appendChild(fragment);
+  for(const [name, el] of OVERLAY_DOM.markerCache){
+    if(keep.has(name)) continue;
+    el.remove();
+    OVERLAY_DOM.markerCache.delete(name);
+  }
+}
+
+function syncUserMarker(userState, counterRotate){
+  OVERLAY_DOM.userLayer.replaceChildren();
+  if(!userState) return;
+  if(Number.isFinite(userState.heading)){
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    arrow.setAttribute("class", "usr-arrow");
+    arrow.setAttribute("viewBox", "0 0 48 48");
+    arrow.setAttribute("style", `left:${userState.x}px;top:${userState.y}px;transform:translate(-50%,-50%) rotate(${userState.heading}deg)${counterRotate ? ` ${counterRotate}` : ""}`);
+    arrow.innerHTML = `<line class="shaft" x1="24" y1="24" x2="24" y2="10"></line><polygon class="head" points="24,4 18,14 30,14"></polygon>`;
+    OVERLAY_DOM.userLayer.appendChild(arrow);
+  }
+  const dot = document.createElement("div");
+  dot.className = "usr-pt";
+  dot.style.left = `${userState.x}px`;
+  dot.style.top = `${userState.y}px`;
+  dot.style.transform = counterRotate ? `translate(-50%,-50%) ${counterRotate}` : "translate(-50%,-50%)";
+  OVERLAY_DOM.userLayer.appendChild(dot);
+}
+
+function syncPopup(popupState, counterRotate){
+  OVERLAY_DOM.popupLayer.replaceChildren();
+  if(!popupState) return;
+  const popup = document.createElement("div");
+  popup.className = `mv-popup ${popupState.flipUp ? "up" : "down"}`;
+  popup.style.left = `${popupState.left}px`;
+  popup.style.top = `${popupState.top}px`;
+  popup.style.width = `${popupState.width}px`;
+  popup.style.transform = counterRotate || "";
+  popup.style.transformOrigin = "50% 100%";
+  popup.innerHTML = `<span class="ar" style="left:${popupState.arrowX}px"></span>
+    <button class="cl" data-close="1">×</button>
+    <div class="tp"><span class="em">${popupState.icon}</span><div style="flex:1;min-width:0"><div class="nm">${esc(popupState.name)}</div></div></div>
+    <div class="sb"><span>${popupState.park}</span><span>·</span><span>${popupState.land}</span><span>·</span><span>${popupState.type}</span></div>
+    <div class="rw"><span class="tier t-${popupState.tier}">${popupState.stars}</span>${popupState.fastTag}</div>
+    <div class="rw" style="margin-top:5px">${popupState.badge}${popupState.singleBadge}</div>
+    <div class="bh">${popupState.baseText}</div>`;
+  OVERLAY_DOM.popupLayer.appendChild(popup);
 }
 
 function renderTileMap(){
@@ -947,6 +1218,8 @@ function renderTileMap(){
   const overlay = document.getElementById("tm-overlay");
   const viewport = wrap?.querySelector(".tm-viewport");
   if(!wrap || !layer || !overlay || !viewport) return;
+  ensureTileDom(layer);
+  ensureOverlayDom(overlay);
   const vw = viewport.clientWidth;
   const vh = viewport.clientHeight;
   const zoom = TILE_MAP.zoom;
@@ -984,31 +1257,46 @@ function renderTileMap(){
     renderMinY = Math.max(renderMinY, cropMinY);
     renderMaxY = Math.min(renderMaxY, cropMaxY);
   }
-  let html = "";
-  let overlayHtml = "";
-  let visibleMarkers = 0;
-  let tilesDrawn = 0;
-
-  for(let ty = renderMinY; ty <= renderMaxY; ty++){
-    if(ty < 0 || ty >= scale) continue;
-    for(let tx = renderMinX; tx <= renderMaxX; tx++){
-      const wrappedX = wrapX(tx, tileZoom);
-      const left = tx * TILE_SIZE * visualScale - topLeftX;
-      const top = ty * TILE_SIZE * visualScale - topLeftY;
-      const size = TILE_SIZE * visualScale;
-      html += `<img class="tm-tile" loading="eager" decoding="async" onerror="this.style.display='none'" style="left:${left}px;top:${top}px;width:${size}px;height:${size}px" src="tiles/${tileZoom}/${wrappedX}/${ty}.jpg" alt="">`;
-      tilesDrawn++;
+  const tileRangeKey = `${tileZoom}:${renderMinX}:${renderMaxX}:${renderMinY}:${renderMaxY}`;
+  const canReuseTileSet = TILE_DOM.currentZoom === tileZoom && TILE_DOM.currentRangeKey === tileRangeKey && TILE_DOM.cache.size;
+  if(TILE_DOM.currentZoom !== null && TILE_DOM.currentZoom !== tileZoom){
+    moveCurrentTilesToPrevious();
+  }
+  TILE_DOM.currentZoom = tileZoom;
+  if(canReuseTileSet){
+    updateCurrentTilePositions(topLeftX, topLeftY, visualScale);
+  } else {
+    const descriptors = [];
+    const size = TILE_SIZE * visualScale;
+    for(let ty = renderMinY; ty <= renderMaxY; ty++){
+      if(ty < 0 || ty >= scale) continue;
+      for(let tx = renderMinX; tx <= renderMaxX; tx++){
+        const wrappedX = wrapX(tx, tileZoom);
+        descriptors.push({
+          key: `${tileZoom}/${tx}/${ty}`,
+          src: `tiles/${tileZoom}/${wrappedX}/${ty}.jpg`,
+          tx,
+          ty,
+          left: tx * TILE_SIZE * visualScale - topLeftX,
+          top: ty * TILE_SIZE * visualScale - topLeftY,
+          size
+        });
+      }
     }
+    syncTiles(descriptors);
+    TILE_DOM.currentRangeKey = tileRangeKey;
+    if(TILE_DOM.previousLayer && TILE_DOM.previousLayer.childElementCount) queuePreviousTileCleanup();
   }
 
   const minStars = tierMinStars(S.mrt);
   const zoomNorm = (zoom - TILE_MAP.minZoom) / Math.max(1, TILE_MAP.maxZoom - TILE_MAP.minZoom);
   const markerSize = Math.round(30 + zoomNorm * 18); // 30..48 px
   const markerFont = Math.round(15 + zoomNorm * 9);  // 15..24 px
-  const mapMarkers = Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t));
-  for(const [name, meta] of mapMarkers){
-    const geo = rideGeoByName(name);
-    if(!geo) continue;
+  const pillW = Math.round(markerSize * 1.55);
+  const badgeOffset = -Math.max(4, Math.round(markerSize * 0.18));
+  const counterRotate = TILE_MAP.rotation ? `rotate(${-TILE_MAP.rotation}deg)` : "";
+  const markerDescriptors = [];
+  for(const { name, meta, geo } of getMapMarkerEntries()){
     if(S.pf !== "all" && meta.p !== S.pf) continue;
     if(TIER_STARS[meta.t] < minStars) continue;
 
@@ -1016,43 +1304,34 @@ function renderTileMap(){
     const px = world.x - topLeftX;
     const py = world.y - topLeftY;
     if(px < -20 || px > vw + 20 || py < -20 || py > vh + 20) continue;
-    const sel = S.msel===name ? " sel" : "";
     const lv = liveRide(name, meta);
     const slv = singleRide(name, meta);
-    const badgeOffset = -Math.max(4, Math.round(markerSize * 0.18));
-    let waitBadge = "";
-    if(lv){
-      if(!lv.is_open){
-        waitBadge = `<span class="mv-wt off" style="top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0)">✕</span>`;
-      } else {
-        const w = lv.wait_time;
-        const color = wc(w);
-        const tx = w > 40 ? "#fff" : "#0f172a";
-        const sPart = slv && slv.is_open ? `/${singleWaitText(slv.wait_time)}` : "";
-        waitBadge = `<span class="mv-wt" style="top:calc(100% + ${badgeOffset}px);transform:translate(-30%,0);background:${color};color:${tx}">${w===0?'0':w}${sPart}</span>`;
-      }
-    }
-    const pillW = Math.round(markerSize * 1.55);
-    const icCls = meta.glow ? "ic glow" : "ic";
-    overlayHtml += `<div class="tm-pt t-${meta.t}${sel}" data-ride="${attr(name)}" style="left:${px}px;top:${py}px;width:${pillW}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}"><div class="body"><span class="rt">${TIER_STARS[meta.t]}</span><span class="${icCls}">${meta.i}</span></div>${waitBadge}</div>`;
-    visibleMarkers += 1;
+    markerDescriptors.push({
+      name,
+      meta,
+      px,
+      py,
+      markerSize,
+      markerFont,
+      pillW,
+      waitBadge: buildWaitBadgeState(lv, slv, badgeOffset),
+      selected: S.msel === name
+    });
   }
+  syncMarkers(markerDescriptors, counterRotate);
 
+  let userState = null;
   if(S.userPos && Number.isFinite(S.userPos.lat) && Number.isFinite(S.userPos.lng) && S.userPosAt && Date.now()-S.userPosAt<USER_POS_TTL_MS){
     const wp = projectLatLng(S.userPos.lat, S.userPos.lng, zoom);
     const ux = wp.x - topLeftX;
     const uy = wp.y - topLeftY;
     if(ux >= -24 && ux <= vw + 24 && uy >= -24 && uy <= vh + 24){
-      if(Number.isFinite(S.userHeading)){
-        overlayHtml += `<svg class="usr-arrow" viewBox="0 0 48 48" style="left:${ux}px;top:${uy}px;transform:translate(-50%,-50%) rotate(${S.userHeading}deg)">
-          <line class="shaft" x1="24" y1="24" x2="24" y2="10"></line>
-          <polygon class="head" points="24,4 18,14 30,14"></polygon>
-        </svg>`;
-      }
-      overlayHtml += `<div class="usr-pt" style="left:${ux}px;top:${uy}px"></div>`;
+      userState = { x: ux, y: uy, heading: S.userHeading };
     }
   }
+  syncUserMarker(userState, counterRotate);
 
+  let popupState = null;
   if(S.msel && R[S.msel]){
     const n=S.msel, m=R[n];
     const geo=rideGeoByName(n);
@@ -1078,53 +1357,31 @@ function renderTileMap(){
         const top=flipUp?Math.max(8,py-gap-popupH):Math.min(vh-popupH-8,py+gap);
         const left=Math.min(vw-popupW-8,Math.max(8,px-popupW/2));
         const ax=Math.min(popupW-14,Math.max(4,px-left-5));
-        overlayHtml += `<div class="mv-popup ${flipUp?'up':'down'}" style="left:${left}px;top:${top}px;width:${popupW}px">
-          <span class="ar" style="left:${ax}px"></span>
-          <button class="cl" data-close="1">×</button>
-          <div class="tp"><span class="em">${m.i}</span><div style="flex:1;min-width:0"><div class="nm">${esc(n)}</div></div></div>
-          <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>
-          <div class="rw"><span class="tier t-${m.t}">${T[m.t].stars}</span>${fastTag}</div>
-          <div class="rw" style="margin-top:5px">${badge}${singleBadge}</div>
-          <div class="bh">${baseText(m,lv)}</div>
-        </div>`;
+        popupState = {
+          flipUp,
+          left,
+          top,
+          width: popupW,
+          arrowX: ax,
+          icon: m.i,
+          name: n,
+          park: `${P[m.p].e} ${P[m.p].s}`,
+          land: m.l,
+          type: m.tp,
+          tier: m.t,
+          stars: T[m.t].stars,
+          fastTag,
+          badge,
+          singleBadge,
+          baseText: baseText(m,lv)
+        };
       }
     }
   }
-
-  mountTileSet(html);
-  overlay.innerHTML = overlayHtml;
+  syncPopup(popupState, counterRotate);
 
   viewport.style.transform = TILE_MAP.rotation ? `rotate(${TILE_MAP.rotation}deg)` : "";
-  const counter = TILE_MAP.rotation ? `rotate(${-TILE_MAP.rotation}deg)` : "";
-  if(counter){
-    overlay.querySelectorAll(".tm-pt").forEach(el=>{
-      el.style.transform = `translate(-50%,-50%) ${counter}`;
-    });
-    overlay.querySelectorAll(".usr-arrow").forEach(el=>{
-      const base = el.style.transform.replace(/\srotate\([^)]*\)\s*$/,"");
-      el.style.transform = base ? `${base} ${counter}` : `translate(-50%,-50%) ${counter}`;
-    });
-    overlay.querySelectorAll(".usr-pt").forEach(el=>{
-      el.style.transform = `translate(-50%,-50%) ${counter}`;
-    });
-    overlay.querySelectorAll(".mv-popup").forEach(el=>{
-      el.style.transform = counter;
-      el.style.transformOrigin = "50% 100%";
-    });
-  }
-
   updateCompass();
-
-  const dbg = document.getElementById("tm-debug");
-  if(dbg){
-    const tileSizeCss = (TILE_SIZE * visualScale).toFixed(1);
-    dbg.textContent =
-      `dpr ${dpr}  boost +${dprBoost}\n`+
-      `zoom ${zoom.toFixed(2)} → tile z${tileZoom}\n`+
-      `tile 512px → ${tileSizeCss} css\n`+
-      `tiles ${tilesDrawn}  markers ${visibleMarkers}\n`+
-      `viewport ${vw}×${vh}  rot ${TILE_MAP.rotation.toFixed(0)}°`;
-  }
 }
 
 function updateCompass(){
@@ -2067,7 +2324,6 @@ function draw(){
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
     h+=`<div class="tm-zoom"><button type="button" onclick="zoomInTileMap()">+</button><button type="button" onclick="zoomOutTileMap()">−</button></div>`;
     h+=`<button class="tm-compass" id="tm-compass" type="button" onclick="event.stopPropagation();resetMapRotation()" aria-label="Развернуть на север" style="display:none"><svg viewBox="0 0 24 24"><polygon class="n" points="12,2 16,12 12,10 8,12"/><polygon class="s" points="12,22 16,12 12,14 8,12"/></svg></button>`;
-    h+=`<div class="tm-debug" id="tm-debug"></div>`;
     h+=`</div>`;
   }
 
