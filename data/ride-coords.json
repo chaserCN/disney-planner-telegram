@@ -1,90 +1,90 @@
 {
   "Big Thunder Mountain": {
-    "mx": 40.3,
-    "my": 39.94
+    "lat": 48.8715163,
+    "lng": 2.7747935
   },
   "Hyperspace Mountain": {
-    "mx": 77.59,
-    "my": 21.94
+    "lat": 48.8736557,
+    "lng": 2.7787993
   },
   "Peter Pan's Flight": {
-    "mx": 32.11,
-    "my": 21.02
+    "lat": 48.8738439,
+    "lng": 2.7741107
   },
   "Snow White and the Seven Dwarfs": {
-    "mx": 42.1,
-    "my": 22.2
+    "lat": 48.8735334,
+    "lng": 2.7753797
   },
   "Phantom Manor": {
-    "mx": 58.62,
-    "my": 43.19
+    "lat": 48.8710346,
+    "lng": 2.7768009
   },
   "Pirates of the Caribbean": {
-    "mx": 25.65,
-    "my": 23.8
+    "lat": 48.8735169,
+    "lng": 2.7734057
   },
   "Indiana Jones": {
-    "mx": 14.66,
-    "my": 32.28
+    "lat": 48.8724043,
+    "lng": 2.7721778
   },
   "Buzz Lightyear Laser Blast": {
-    "mx": 68.97,
-    "my": 24.61
+    "lat": 48.8734675,
+    "lng": 2.7779425
   },
   "Star Tours": {
-    "mx": 76.29,
-    "my": 14.86
+    "lat": 48.8746468,
+    "lng": 2.778745
   },
   "It's a Small World": {
-    "mx": 51.72,
-    "my": 14.86
+    "lat": 48.8746507,
+    "lng": 2.7761345
   },
   "Autopia": {
-    "mx": 76.51,
-    "my": 23.92
+    "lat": 48.8734486,
+    "lng": 2.7787562
   },
   "Orbitron": {
-    "mx": 72.84,
-    "my": 22.29
+    "lat": 48.87353,
+    "lng": 2.7784071
   },
   "Dumbo": {
-    "mx": 37.93,
-    "my": 18.23
+    "lat": 48.8740409,
+    "lng": 2.7746459
   },
   "Frozen Ever After": {
-    "mx": 26.94,
-    "my": 96.95
+    "lat": 48.8641345,
+    "lng": 2.7736107
   },
   "Crush's Coaster": {
-    "mx": 71.34,
-    "my": 66.65
+    "lat": 48.8680461,
+    "lng": 2.7781914
   },
   "Tower of Terror": {
-    "mx": 76.94,
-    "my": 77.1
+    "lat": 48.8667895,
+    "lng": 2.7787835
   },
   "Ratatouille": {
-    "mx": 53.23,
-    "my": 70.48
+    "lat": 48.867437,
+    "lng": 2.7762607
   },
   "Avengers Assemble": {
-    "mx": 82.54,
-    "my": 86.97
+    "lat": 48.8654427,
+    "lng": 2.7792991
   },
   "Spider-Man W.E.B.": {
-    "mx": 83.62,
-    "my": 82.2
+    "lat": 48.8661469,
+    "lng": 2.7793577
   },
   "Cars Road Trip": {
-    "mx": 41.59,
-    "my": 79.42
+    "lat": 48.8664701,
+    "lng": 2.7750387
   },
   "Toy Soldiers": {
-    "mx": 62.5,
-    "my": 73.61
+    "lat": 48.8671524,
+    "lng": 2.7771347
   },
   "RC Racer": {
-    "mx": 57.97,
-    "my": 76.17
+    "lat": 48.8668584,
+    "lng": 2.7768079
   }
 }
