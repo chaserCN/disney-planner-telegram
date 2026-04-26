@@ -615,6 +615,8 @@ function renderConditionsChart(hours, observedAt){
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="62" style="display:block" aria-label="Условия по часам">${vGuides}${icons}${labels}${nowMarker}</svg>`;
 }
 function renderPrecipChart(hours){
+  const PRECIP_NOISE_THRESHOLD=20;
+  const sig=v=>Number.isFinite(v)&&v>=PRECIP_NOISE_THRESHOLD;
   let vals=hours.map(h=>h.precipitation_probability).filter(Number.isFinite);
   if(!vals.length)return "";
   const chartHours=hours;
@@ -625,9 +627,10 @@ function renderPrecipChart(hours){
   const barW=Math.max(6,Math.min(12,plotW/Math.max(1,chartHours.length)-4));
   const xLabelIndexes=chartHours.map((_,i)=>i).filter(i=>i%3===0||i===chartHours.length-1);
   const bars=chartHours.map((h,i)=>{
-    const v=Number.isFinite(h.precipitation_probability)?h.precipitation_probability:0;
+    const raw=Number.isFinite(h.precipitation_probability)?h.precipitation_probability:0;
+    if(!sig(raw))return "";
     const x=padX+(i*plotW)/Math.max(1,chartHours.length-1)-barW/2;
-    const hPx=(v/100)*chartH;
+    const hPx=(raw/100)*chartH;
     const ts=weatherTs(h.time);
     const past=nowTs!=null&&ts!=null&&ts<nowTs;
     return `<rect x="${x.toFixed(1)}" y="${(padTop+chartH-hPx).toFixed(1)}" width="${barW.toFixed(1)}" height="${hPx.toFixed(1)}" rx="3" fill="rgba(96,165,250,.88)" opacity="${past?0.38:1}"/>`;
@@ -639,8 +642,9 @@ function renderPrecipChart(hours){
   const topLabels=xLabelIndexes.map(i=>{
     const h=chartHours[i];
     const x=padX+(i*plotW)/Math.max(1,chartHours.length-1);
-    const v=Number.isFinite(h.precipitation_probability)?Math.round(h.precipitation_probability):0;
-    return `<text x="${x.toFixed(1)}" y="13" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="800">${v}%</text>`;
+    const raw=Number.isFinite(h.precipitation_probability)?h.precipitation_probability:0;
+    if(!sig(raw))return "";
+    return `<text x="${x.toFixed(1)}" y="13" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="800">${Math.round(raw)}%</text>`;
   }).join("");
   const labels=chartHours.filter((_,i)=>i%3===0||i===chartHours.length-1).map(h=>{
     const x=padX+(chartHours.indexOf(h)*plotW)/Math.max(1,chartHours.length-1);
