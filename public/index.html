@@ -186,7 +186,8 @@
   .tm-pt.sel .body { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); }
   .tm-pt.sel { z-index:7; }
   .tm-pt .rt { font-weight:800; font-size:0.85em; letter-spacing:-0.02em; }
-  .tm-pt .ic { font-size:0.95em; }
+  .tm-pt .ic { font-size:1.25em; }
+  .tm-pt .ic.glow { filter:drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
   .tm-pt.t-S .body { background:#8b5cf6; color:#fff; }
   .tm-pt.t-A .body { background:#a78bfa; color:#fff; }
   .tm-pt.t-B .body { background:#c4b5fd; color:#2e1065; }
@@ -1005,7 +1006,8 @@ function renderTileMap(){
       }
     }
     const pillW = Math.round(markerSize * 1.55);
-    overlayHtml += `<div class="tm-pt t-${meta.t}${sel}" data-ride="${attr(name)}" style="left:${px}px;top:${py}px;width:${pillW}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}"><div class="body"><span class="rt">${TIER_STARS[meta.t]}</span><span class="ic">${meta.i}</span></div>${waitBadge}</div>`;
+    const icCls = meta.glow ? "ic glow" : "ic";
+    overlayHtml += `<div class="tm-pt t-${meta.t}${sel}" data-ride="${attr(name)}" style="left:${px}px;top:${py}px;width:${pillW}px;height:${markerSize}px;font-size:${markerFont}px" title="${attr(name)}"><div class="body"><span class="rt">${TIER_STARS[meta.t]}</span><span class="${icCls}">${meta.i}</span></div>${waitBadge}</div>`;
     visibleMarkers += 1;
   }
 
