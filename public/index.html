@@ -623,6 +623,7 @@ const GEO_TEST_OVERRIDE = {
   heading: 90
 };
 const MAP_VIEW_STORAGE_KEY = "dlp.map.view.v1";
+const TILE_OVERSCAN = 1;
 const TILE_POINTERS = new Map();
 let tilePanStart = null;
 let tileRenderRaf = 0;
@@ -829,7 +830,7 @@ function mountTileSet(html){
     activate();
     return;
   }
-  const waitCount = Math.min(6, imgs.length);
+  const waitCount = Math.min(12, imgs.length);
   let pending = waitCount;
   const onReady = ()=>{
     pending -= 1;
@@ -843,7 +844,7 @@ function mountTileSet(html){
       img.addEventListener("error", onReady, { once: true });
     }
   }
-  setTimeout(activate, 140);
+  setTimeout(activate, 450);
 }
 
 function renderTileMap(){
@@ -868,10 +869,10 @@ function renderTileMap(){
   const tileMinY = Math.floor(topLeftBaseY / TILE_SIZE);
   const tileMaxY = Math.floor((topLeftBaseY + vh / visualScale) / TILE_SIZE);
   const crop = S.cropBounds && S.cropBounds.bounds;
-  let renderMinX = tileMinX;
-  let renderMaxX = tileMaxX;
-  let renderMinY = tileMinY;
-  let renderMaxY = tileMaxY;
+  let renderMinX = tileMinX - TILE_OVERSCAN;
+  let renderMaxX = tileMaxX + TILE_OVERSCAN;
+  let renderMinY = tileMinY - TILE_OVERSCAN;
+  let renderMaxY = tileMaxY + TILE_OVERSCAN;
   if(crop){
     const westPx = projectLatLng(0, crop.west, tileZoom).x;
     const eastPx = projectLatLng(0, crop.east, tileZoom).x;
