@@ -183,7 +183,6 @@
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
   .tm-pt { position:absolute; width:18px; height:18px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; font-size:10px; line-height:1; cursor:pointer; }
   .tm-pt.sel { box-shadow:0 0 0 1.5px #000, 0 0 0 4px var(--ac); z-index:7; }
-  .tm-note { position:absolute; left:8px; bottom:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; z-index:3; }
   .tm-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:4; }
   .tm-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
@@ -992,10 +991,6 @@ function renderTileMap(){
 
   mountTileSet(html);
   overlay.innerHTML = overlayHtml;
-  const note = document.getElementById("tm-note");
-  if(note){
-    note.textContent = `Disney tiles · z${zoom.toFixed(2)} · rides ${visibleMarkers}`;
-  }
 }
 
 function scheduleTileRender(){
@@ -1871,7 +1866,6 @@ function draw(){
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
     h+=`<div class="tm-zoom"><button onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom+0.5)">+</button><button onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom-0.5)">−</button></div>`;
-    h+=`<div class="tm-note" id="tm-note">Disney tiles</div>`;
     h+=`</div>`;
   }
 
