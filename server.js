@@ -89,7 +89,8 @@ db.exec(`
     premier_return_end TEXT,
     source TEXT NOT NULL,
     fallback INTEGER NOT NULL DEFAULT 0,
-    weather_code INTEGER
+    weather_code INTEGER,
+    precipitation REAL NOT NULL DEFAULT 0
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_ride_live_samples_unique
@@ -241,6 +242,17 @@ function runMigrations() {
     db.exec("ALTER TABLE ride_live_samples ADD COLUMN weather_code INTEGER");
     console.log("Migration 20260424_add_weather_code_to_samples: column added");
   });
+
+  runMigration("20260426_add_precipitation_to_samples", () => {
+    const cols = db.prepare("PRAGMA table_info(ride_live_samples)").all();
+    if (cols.some(c => c.name === "precipitation")) {
+      console.log("Migration 20260426_add_precipitation_to_samples: skipped (column exists)");
+      return;
+    }
+    db.exec("ALTER TABLE ride_live_samples ADD COLUMN precipitation REAL NOT NULL DEFAULT 0");
+    db.exec("UPDATE ride_live_samples SET precipitation = 0 WHERE precipitation IS NULL");
+    console.log("Migration 20260426_add_precipitation_to_samples: column added and backfilled");
+  });
 }
 
 runMigrations();
@@ -251,13 +263,13 @@ const insertSample = db.prepare(`
     time_bucket, hour, weekday, day_type,
     standby_open, standby_wait, single_open, single_wait,
     premier_price_amount, premier_price_currency, premier_return_start, premier_return_end,
-    source, fallback, weather_code
+    source, fallback, weather_code, precipitation
   ) VALUES (
     @ride_id, @park_id, @ride_name, @sampled_at, @local_date, @local_time,
     @time_bucket, @hour, @weekday, @day_type,
     @standby_open, @standby_wait, @single_open, @single_wait,
     @premier_price_amount, @premier_price_currency, @premier_return_start, @premier_return_end,
-    @source, @fallback, @weather_code
+    @source, @fallback, @weather_code, @precipitation
   )
 `);
 
@@ -271,6 +283,7 @@ const baselineRows = db.prepare(`
   WHERE day_type = ?
     AND standby_open = 1
     AND standby_wait IS NOT NULL
+    AND COALESCE(precipitation, 0) <= 0
     AND (weather_code IS NULL OR weather_code < 63)
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY ride_id, hour, standby_wait
@@ -326,6 +339,7 @@ const baselineForRide = db.prepare(`
     AND hour = ?
     AND standby_open = 1
     AND standby_wait IS NOT NULL
+    AND COALESCE(precipitation, 0) <= 0
     AND (weather_code IS NULL OR weather_code < 63)
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY wait_time
@@ -1004,9 +1018,11 @@ async function collectWaitSamples() {
 
     const live = await fetchLiveData();
     let weatherCode = null;
+    let weatherPrecipitation = 0;
     try {
       const w = await getWeather();
       if (w && Number.isFinite(w.code)) weatherCode = w.code;
+      if (w && Number.isFinite(w.precipitation)) weatherPrecipitation = w.precipitation;
     } catch (err) {
       console.warn("Weather fetch failed during collection:", err.message);
     }
@@ -1040,7 +1056,8 @@ async function collectWaitSamples() {
         premier_return_end: ride.paid ? ride.paid.returnEnd || null : null,
         source: live.source,
         fallback: live.fallback ? 1 : 0,
-        weather_code: weatherCode
+        weather_code: weatherCode,
+        precipitation: weatherPrecipitation
       });
       livePerRideId.set(meta.id, { is_open: !!ride.is_open, wait_time: waitTime });
     }
