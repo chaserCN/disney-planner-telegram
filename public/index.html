@@ -184,6 +184,8 @@
   .tm-overlay { position:absolute; inset:0; pointer-events:auto; }
   .tm-marker-layer, .tm-user-layer, .tm-popup-layer { position:absolute; inset:0; }
   .tm-user-layer { pointer-events:none; }
+  .tm-popup-layer { pointer-events:none; }
+  .tm-popup-layer .mv-popup { pointer-events:auto; }
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
   .tm-pt { position:absolute; transform:translate(-50%,-50%); font-size:10px; line-height:1; cursor:pointer; background:transparent; }
   .tm-pt .body { width:100%; height:100%; box-sizing:border-box; border-radius:9999px; border:2px solid #fff; box-shadow:0 0 0 1.5px #000, 0 1px 3px rgba(0,0,0,.5); overflow:hidden; display:flex; flex-direction:row; align-items:center; justify-content:center; gap:0.15em; padding:0 0.35em; }
