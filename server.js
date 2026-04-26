@@ -895,7 +895,9 @@ function currentCollectIntervalMinutes(paris) {
   return isFastCollectDay(paris || getParisDateParts(new Date())) ? 5 : SLOW_COLLECT_EVERY_MINUTES;
 }
 
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8722&longitude=2.7758&current=temperature_2m,weather_code,precipitation&daily=sunrise,sunset&timezone=Europe%2FParis";
+// Use a point between Disneyland Park and Walt Disney Studios so Open-Meteo
+// resolves to a grid cell that better represents the full resort.
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8699&longitude=2.7776&current=temperature_2m,weather_code,precipitation&daily=sunrise,sunset&timezone=Europe%2FParis";
 const WEATHER_TTL_MS = 10 * 60 * 1000;
 let weatherCache = { data: null, fetchedAt: 0 };
 
