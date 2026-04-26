@@ -23,13 +23,16 @@
     --safe-bot: env(safe-area-inset-bottom, 0px);
     color-scheme: dark;
   }
-  html, body { 
-    font-family: 'DM Sans','Segoe UI',system-ui,sans-serif; 
-    background: var(--bg); color: var(--tx); 
+  html, body {
+    font-family: 'DM Sans','Segoe UI',system-ui,sans-serif;
+    background: var(--bg); color: var(--tx);
     min-height: 100vh; overflow-x: hidden;
     padding-top: var(--safe-top);
     padding-bottom: var(--safe-bot);
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
   }
+  input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   body.modal-open { overflow:hidden; overscroll-behavior:none; }
   .app { max-width: 520px; margin:0 auto; padding: 10px 14px 20px; }
 
@@ -1979,6 +1982,11 @@ loadSubscription();
 initAutoRefresh();
 initPullToRefresh();
 initModalInteractionLock();
+
+document.addEventListener("contextmenu",e=>{
+  if(e.target.closest("input,textarea,[contenteditable]"))return;
+  e.preventDefault();
+});
 </script>
 </body>
 </html>
