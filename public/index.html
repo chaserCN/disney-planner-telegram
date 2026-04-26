@@ -1224,6 +1224,10 @@ function renderTileMap(){
   ensureOverlayDom(overlay);
   const vw = viewport.clientWidth;
   const vh = viewport.clientHeight;
+  const visibleMinX = (vw - wrap.clientWidth) / 2;
+  const visibleMaxX = visibleMinX + wrap.clientWidth;
+  const visibleMinY = (vh - wrap.clientHeight) / 2;
+  const visibleMaxY = visibleMinY + wrap.clientHeight;
   const zoom = TILE_MAP.zoom;
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const dprBoost = Math.max(0, Math.round(Math.log2(dpr)));
@@ -1352,12 +1356,14 @@ function renderTileMap(){
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
         const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
         const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
-        const popupW=Math.min(280, vw-16);
+        const popupW=Math.min(280, wrap.clientWidth-16);
         const popupH=170;
         const gap=16;
-        const flipUp=py+gap+popupH>vh-8;
-        const top=flipUp?Math.max(8,py-gap-popupH):Math.min(vh-popupH-8,py+gap);
-        const left=Math.min(vw-popupW-8,Math.max(8,px-popupW/2));
+        const flipUp=py+gap+popupH>visibleMaxY-8;
+        const top=flipUp
+          ? Math.max(visibleMinY+8, py-gap-popupH)
+          : Math.min(visibleMaxY-popupH-8, py+gap);
+        const left=Math.min(visibleMaxX-popupW-8, Math.max(visibleMinX+8, px-popupW/2));
         const ax=Math.min(popupW-14,Math.max(4,px-left-5));
         popupState = {
           flipUp,
