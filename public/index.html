@@ -626,6 +626,7 @@ let tileRenderRaf = 0;
 let tileSetSeq = 0;
 let tileTapStart = null;
 const LEGACY_GEO_CACHE = new Map();
+const TAB_SCROLL_Y = {};
 let geoMsgTimer = null;
 let userPosTimer = null;
 let headingWatchAttached = false;
@@ -634,7 +635,20 @@ let lastLiveFetchAt = 0;
 let autoRefreshTimer = null;
 const USER_POS_TTL_MS = 5 * 60 * 1000;
 const LIVE_AUTO_REFRESH_MS = 5 * 60 * 1000;
-function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
+function set(p){
+  const prevTab = S.tab;
+  const nextTab = Object.prototype.hasOwnProperty.call(p, "tab") ? p.tab : prevTab;
+  if(nextTab !== prevTab){
+    TAB_SCROLL_Y[prevTab] = window.scrollY || document.documentElement.scrollTop || 0;
+  }
+  Object.assign(S,p);
+  draw();
+  if(nextTab !== prevTab){
+    const y = Number.isFinite(TAB_SCROLL_Y[nextTab]) ? TAB_SCROLL_Y[nextTab] : 0;
+    requestAnimationFrame(()=>window.scrollTo(0,y));
+  }
+  if(tg)tg.HapticFeedback?.impactOccurred?.("light");
+}
 
 function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
 
@@ -1769,6 +1783,8 @@ function draw(){
 }
 
 draw();
+if("scrollRestoration" in history) history.scrollRestoration = "manual";
+window.scrollTo(0,0);
 loadDefaultMapView();
 fetchLive();
 loadCoords();
