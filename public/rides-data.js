@@ -12,7 +12,7 @@
     "Indiana Jones":              {id:2,srid:7306,t:"A",tp:"горки",p:"d",l:"Adventureland",bh:[9,10,20,21],ap:50,i:"🏺",sr:1,pa:0,glow:1},
     "Peter Pan's Flight":         {id:22,t:"A",tp:"сюжет",p:"d",l:"Fantasyland",bh:[9,21,22],ap:75,i:"🧚",sr:0,pa:1,noGlow:1},
     "Snow White and the Seven Dwarfs": {id:15,t:"B",tp:"сюжет",p:"d",l:"Fantasyland",bh:[10,11,20],ap:30,i:"🍎",sr:0,pa:0},
-    "Buzz Lightyear Laser Blast": {id:5,t:"B",tp:"интерактив",p:"d",l:"Discoveryland",bh:[9,10,13,20],ap:40,i:"🔫",sr:0,pa:1,noGlow:1},
+    "Buzz Lightyear Laser Blast": {id:5,t:"B",tp:"интерактив",p:"d",l:"Discoveryland",bh:[9,10,13,20],ap:40,i:"🔫",sr:0,pa:1},
     "Star Tours":                 {id:9,t:"B",tp:"3D-полёт",p:"d",l:"Discoveryland",bh:[10,11,14,20],ap:30,i:"⭐",sr:0,pa:1},
     "It's a Small World":         {id:19,t:"C",tp:"сюжет лодки",p:"d",l:"Fantasyland",bh:[12,13,14,15],ap:20,i:"🌍",sr:0,pa:0,noGlow:1},
     "Autopia":                    {id:4,t:"C",tp:"вождение",p:"d",l:"Discoveryland",bh:[10,11,19,20],ap:35,i:"🏎️",sr:0,pa:1,glow:1},
