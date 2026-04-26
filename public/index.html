@@ -2250,7 +2250,7 @@ function draw(){
     <div class="hdr-r">${subBtn}</div>
   </div>`;
 
-  h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","📊"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
+  h+=`<div class="tabs">${[["ranking","🏆"],["heatmap","🕒"],["map","🗺️"],["plan","📋"]].map(([k,l])=>`<button class="tb ${S.tab===k?"on":""}" onclick="set({tab:'${k}'})">${l}</button>`).join("")}</div>`;
 
   // ═══ RANKING ═══
   if(S.tab==="ranking"){
