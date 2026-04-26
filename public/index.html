@@ -175,6 +175,10 @@
 
   /* Map view */
   .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:var(--cd); touch-action:none; user-select:none; margin-bottom:32px; }
+  .tm-viewport { position:absolute; inset:0; overflow:hidden; }
+  .tm-tiles { position:absolute; inset:0; }
+  .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
+  .tm-note { position:absolute; left:8px; bottom:8px; padding:5px 8px; background:rgba(0,0,0,.55); color:#fff; border-radius:6px; font-size:10px; z-index:3; }
   .mv-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
   .mv-img { display:block; width:100%; height:auto; -webkit-user-drag:none; pointer-events:none; }
   .mv-pt { position:absolute; width:26px; height:26px; border-radius:50%; border:2px solid #fff; transform:translate(-50%,-50%); box-shadow:0 0 0 1.5px #000, 0 2px 4px rgba(0,0,0,.5); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1; }
@@ -589,6 +593,16 @@ function renderWeatherModal(){
   </div>`;
 }
 const MV = {scale:1,tx:0,ty:0,ready:false};
+const TILE_SIZE = 512;
+const TILE_MAP = {
+  minZoom: 15,
+  maxZoom: 18,
+  zoom: 16,
+  center: { lat: 48.86979615501914, lng: 2.785484790802002 },
+  mounted: false
+};
+const TILE_POINTERS = new Map();
+let tilePanStart = null;
 let geoMsgTimer = null;
 let userPosTimer = null;
 let liveRequest = null;
@@ -597,6 +611,116 @@ let autoRefreshTimer = null;
 const USER_POS_TTL_MS = 5 * 60 * 1000;
 const LIVE_AUTO_REFRESH_MS = 5 * 60 * 1000;
 function set(p){ Object.assign(S,p); draw(); if(tg)tg.HapticFeedback?.impactOccurred?.("light"); }
+
+function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
+
+function worldSize(zoom){
+  return TILE_SIZE * (2 ** zoom);
+}
+
+function projectLatLng(lat,lng,zoom){
+  const size = worldSize(zoom);
+  const x = ((lng + 180) / 360) * size;
+  const siny = clamp(Math.sin((lat * Math.PI) / 180), -0.9999, 0.9999);
+  const y = (0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI)) * size;
+  return { x, y };
+}
+
+function unprojectWorld(x,y,zoom){
+  const size = worldSize(zoom);
+  const lng = (x / size) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * y) / size;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return { lat, lng };
+}
+
+function wrapX(x, zoom){
+  const max = 2 ** zoom;
+  return ((x % max) + max) % max;
+}
+
+function renderTileMap(){
+  const wrap = document.getElementById("mv-wrap");
+  const layer = document.getElementById("tm-tiles");
+  if(!wrap || !layer) return;
+  const vw = wrap.clientWidth;
+  const vh = wrap.clientHeight;
+  const z = TILE_MAP.zoom;
+  const scale = 2 ** z;
+  const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
+  const topLeftX = centerWorld.x - vw / 2;
+  const topLeftY = centerWorld.y - vh / 2;
+  const tileMinX = Math.floor(topLeftX / TILE_SIZE);
+  const tileMaxX = Math.floor((topLeftX + vw) / TILE_SIZE);
+  const tileMinY = Math.floor(topLeftY / TILE_SIZE);
+  const tileMaxY = Math.floor((topLeftY + vh) / TILE_SIZE);
+  let html = "";
+
+  for(let ty = tileMinY; ty <= tileMaxY; ty++){
+    if(ty < 0 || ty >= scale) continue;
+    for(let tx = tileMinX; tx <= tileMaxX; tx++){
+      const wrappedX = wrapX(tx, z);
+      const left = tx * TILE_SIZE - topLeftX;
+      const top = ty * TILE_SIZE - topLeftY;
+      html += `<img class="tm-tile" loading="eager" decoding="async" style="left:${left}px;top:${top}px" src="tiles/${z}/${wrappedX}/${ty}.jpg" alt="">`;
+    }
+  }
+  layer.innerHTML = html;
+  const note = document.getElementById("tm-note");
+  if(note) note.textContent = `Disney tiles · z${z}`;
+}
+
+function setTileZoom(nextZoom){
+  TILE_MAP.zoom = clamp(nextZoom, TILE_MAP.minZoom, TILE_MAP.maxZoom);
+  renderTileMap();
+}
+
+function initTileMap(){
+  if(TILE_MAP.mounted) return;
+  const wrap = document.getElementById("mv-wrap");
+  if(!wrap) return;
+  TILE_MAP.mounted = true;
+
+  wrap.addEventListener("pointerdown",e=>{
+    if(e.target.closest(".mv-tool")) return;
+    TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(TILE_POINTERS.size === 1){
+      tilePanStart = {
+        x: e.clientX,
+        y: e.clientY,
+        center: { ...TILE_MAP.center }
+      };
+      try{ wrap.setPointerCapture(e.pointerId); }catch{}
+    }
+  });
+
+  wrap.addEventListener("pointermove",e=>{
+    if(!TILE_POINTERS.has(e.pointerId)) return;
+    TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(TILE_POINTERS.size !== 1 || !tilePanStart) return;
+    const dx = e.clientX - tilePanStart.x;
+    const dy = e.clientY - tilePanStart.y;
+    const z = TILE_MAP.zoom;
+    const startWorld = projectLatLng(tilePanStart.center.lat, tilePanStart.center.lng, z);
+    const nextWorldX = startWorld.x - dx;
+    const nextWorldY = startWorld.y - dy;
+    const size = worldSize(z);
+    const clampedY = clamp(nextWorldY, 0, size);
+    TILE_MAP.center = unprojectWorld(nextWorldX, clampedY, z);
+    renderTileMap();
+  });
+
+  const endPointer = e=>{
+    TILE_POINTERS.delete(e.pointerId);
+    if(TILE_POINTERS.size === 0) tilePanStart = null;
+  };
+  wrap.addEventListener("pointerup",endPointer);
+  wrap.addEventListener("pointercancel",endPointer);
+  wrap.addEventListener("wheel",e=>{
+    e.preventDefault();
+    setTileZoom(TILE_MAP.zoom + (e.deltaY < 0 ? 1 : -1));
+  },{passive:false});
+}
 
 function setGeoMsg(message){
   if(geoMsgTimer){
@@ -1294,66 +1418,10 @@ function draw(){
   if(S.tab==="map"){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
-
-    const minStars=tierMinStars(S.mrt);
-    const visible=n=>{
-      const m=R[n];if(!m||!S.coords[n])return false;
-      if(S.pf!=="all"&&m.p!==S.pf)return false;
-      if(TIER_STARS[m.t]<minStars)return false;
-      return true;
-    };
-
     h+=`<div class="mv-wrap" id="mv-wrap">`;
-    h+=`<div class="mv-legend">`+Object.entries(T).map(([k,c])=>`<span><span class="d" style="background:${c.bg}"></span>${c.stars}</span>`).join("")+`</div>`;
-    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
-    if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
-    h+=`<div class="mv-scene" id="mv-scene">`;
-    h+=`<img class="mv-img" id="mv-img" src="map.jpg" ondragstart="return false">`;
-    if(S.userPos&&Number.isFinite(S.userPos.mx)&&Number.isFinite(S.userPos.my)&&S.userPosAt&&Date.now()-S.userPosAt<USER_POS_TTL_MS){
-      h+=`<div class="usr-pt" style="left:${S.userPos.mx}%;top:${S.userPos.my}%"></div>`;
-    }
-    Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t)).forEach(([n,m])=>{
-      const c=S.coords[n];if(!c)return;
-      const vis=visible(n);
-      const sel=S.msel===n;
-      const lv=liveRide(n,m);
-      const slv=singleRide(n,m);
-      let wt='';
-      if(lv){
-        if(!lv.is_open)wt=`<span class="mv-wt off">✕</span>`;
-        else{
-          const w=lv.wait_time;
-          const color=wc(w), tx=w>40?'#fff':'#0f172a';
-          const sPart=slv&&slv.is_open?`/${singleWaitText(slv.wait_time)}`:'';
-          wt=`<span class="mv-wt" style="background:${color};color:${tx}">${w===0?'0':w}${sPart}</span>`;
-        }
-      }
-      h+=`<div class="mv-pt t-${m.t} ${vis?'':'dim'} ${sel?'sel':''}" style="left:${c.mx}%;top:${c.my}%" data-ride="${attr(n)}">${m.i}${wt}</div>`;
-    });
-    h+=`</div>`;
-
-    if(S.msel&&R[S.msel]&&S.coords[S.msel]){
-      const n=S.msel, m=R[n], c=S.coords[n];
-      const lv=liveRide(n,m);
-      const slv=singleRide(n,m);
-      const paid=paidRide(n,m);
-      let badge='';
-      if(S.ld)badge='<span class="lv lv-off">⏳ ждём live</span>';
-      else if(!lv)badge='<span class="lv lv-off">нет live</span>';
-      else if(!lv.is_open)badge='<span class="lv lv-off">Закрыт</span>';
-      else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
-      const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
-      const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
-      h+=`<div class="mv-popup" id="mv-popup" data-mx="${c.mx}" data-my="${c.my}">
-        <span class="ar"></span>
-        <button class="cl" data-close="1">×</button>
-        <div class="tp"><span class="em">${m.i}</span><div style="flex:1;min-width:0"><div class="nm">${esc(n)}</div></div></div>
-        <div class="sb"><span>${P[m.p].e} ${P[m.p].s}</span><span>·</span><span>${m.l}</span><span>·</span><span>${m.tp}</span></div>
-        <div class="rw"><span class="tier t-${m.t}">${T[m.t].stars}</span>${fastTag}</div>
-        <div class="rw" style="margin-top:5px">${badge}${singleBadge}</div>
-        <div class="bh">${baseText(m,lv)}</div>
-      </div>`;
-    }
+    h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom+1)">+</button><button class="mv-tool" onclick="event.stopPropagation();setTileZoom(TILE_MAP.zoom-1)">−</button></div>`;
+    h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div></div>`;
+    h+=`<div class="tm-note" id="tm-note">Disney tiles</div>`;
     h+=`</div>`;
   }
 
@@ -1362,10 +1430,7 @@ function draw(){
 
   if(S.weatherOpen)attachWeatherDrag();
 
-  if(S.tab==="map"){
-    MV.ready=false;
-    requestAnimationFrame(()=>{mvInit();mvApply()});
-  }
+  if(S.tab==="map")requestAnimationFrame(()=>{initTileMap();renderTileMap()});
 }
 
 draw();
