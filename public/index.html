@@ -620,11 +620,13 @@ const GEO_TEST_OVERRIDE = {
   lng: 2.778777,
   heading: 90
 };
+const MAP_VIEW_STORAGE_KEY = "dlp.map.view.v1";
 const TILE_POINTERS = new Map();
 let tilePanStart = null;
 let tileRenderRaf = 0;
 let tileSetSeq = 0;
 let tileTapStart = null;
+let mapViewSaveTimer = null;
 const LEGACY_GEO_CACHE = new Map();
 const TAB_SCROLL_Y = {};
 let geoMsgTimer = null;
@@ -713,6 +715,44 @@ function isPointInCropBounds(lat,lng){
   const crop = S.cropBounds && S.cropBounds.bounds;
   if(!crop) return true;
   return lat <= crop.north && lat >= crop.south && lng >= crop.west && lng <= crop.east;
+}
+
+function saveMapViewNow(){
+  try{
+    const payload = {
+      zoom: Math.round(TILE_MAP.zoom * 1000) / 1000,
+      center: {
+        lat: Math.round(TILE_MAP.center.lat * 1e7) / 1e7,
+        lng: Math.round(TILE_MAP.center.lng * 1e7) / 1e7
+      }
+    };
+    localStorage.setItem(MAP_VIEW_STORAGE_KEY, JSON.stringify(payload));
+  }catch{}
+}
+
+function scheduleMapViewSave(){
+  if(mapViewSaveTimer) clearTimeout(mapViewSaveTimer);
+  mapViewSaveTimer = setTimeout(()=>{
+    mapViewSaveTimer = null;
+    saveMapViewNow();
+  }, 250);
+}
+
+function loadSavedMapViewFromStorage(){
+  try{
+    const raw = localStorage.getItem(MAP_VIEW_STORAGE_KEY);
+    if(!raw) return false;
+    const parsed = JSON.parse(raw);
+    const z = Number(parsed && parsed.zoom);
+    const lat = Number(parsed && parsed.center && parsed.center.lat);
+    const lng = Number(parsed && parsed.center && parsed.center.lng);
+    if(!Number.isFinite(z) || !Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    TILE_MAP.zoom = clamp(z, TILE_MAP.minZoom, TILE_MAP.maxZoom);
+    TILE_MAP.center = { lat, lng };
+    return true;
+  }catch{
+    return false;
+  }
 }
 
 function normalizeHeadingFromEvent(e){
@@ -966,10 +1006,15 @@ function scheduleTileRender(){
 function setTileZoom(nextZoom){
   TILE_MAP.zoom = clamp(nextZoom, TILE_MAP.minZoom, TILE_MAP.maxZoom);
   clampCenterToCrop();
+  scheduleMapViewSave();
   scheduleTileRender();
 }
 
 async function loadDefaultMapView(){
+  if(loadSavedMapViewFromStorage()){
+    scheduleTileRender();
+    return;
+  }
   try{
     const r = await fetch("/api/map-default-view");
     if(!r.ok) return;
@@ -980,6 +1025,7 @@ async function loadDefaultMapView(){
     if(!Number.isFinite(z) || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
     TILE_MAP.zoom = clamp(z, TILE_MAP.minZoom, TILE_MAP.maxZoom);
     TILE_MAP.center = { lat, lng };
+    saveMapViewNow();
     scheduleTileRender();
   }catch{}
 }
@@ -1021,6 +1067,7 @@ function initTileMap(){
     const size = worldSize(z);
     const clampedY = clamp(nextWorldY, 0, size);
     TILE_MAP.center = unprojectWorld(nextWorldX, clampedY, z);
+    scheduleMapViewSave();
     scheduleTileRender();
   });
 
@@ -1056,6 +1103,7 @@ function initTileMap(){
     const nextWorldY = centerWorld.y + e.deltaY;
     const size = worldSize(z);
     TILE_MAP.center = unprojectWorld(nextWorldX, clamp(nextWorldY, 0, size), z);
+    scheduleMapViewSave();
     scheduleTileRender();
   },{passive:false});
 }
@@ -1422,6 +1470,7 @@ function requestUserLocation(){
     }
     TILE_MAP.center = { lat, lng };
     clampCenterToCrop();
+    saveMapViewNow();
     const gpsHeading = Number.isFinite(pos.coords.heading) ? pos.coords.heading : null;
     set({userPos:{lat,lng},userPosAt:Date.now(),userHeading:gpsHeading,geoBusy:false});
     setGeoMsg(null);
