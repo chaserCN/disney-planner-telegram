@@ -903,8 +903,8 @@ function renderTileMap(){
 
   const minStars = tierMinStars(S.mrt);
   const zoomNorm = (zoom - TILE_MAP.minZoom) / Math.max(1, TILE_MAP.maxZoom - TILE_MAP.minZoom);
-  const markerSize = Math.round(16 + zoomNorm * 12); // 16..28 px
-  const markerFont = Math.round(9 + zoomNorm * 6);   // 9..15 px
+  const markerSize = Math.round(24 + zoomNorm * 16); // 24..40 px
+  const markerFont = Math.round(12 + zoomNorm * 8);  // 12..20 px
   const mapMarkers = Object.entries(R).sort((a,b)=>"CBAS".indexOf(a[1].t)-"CBAS".indexOf(b[1].t));
   for(const [name, meta] of mapMarkers){
     const geo = rideGeoByName(name);
@@ -1062,12 +1062,18 @@ function initTileMap(){
       const cy = (a.y + b.y) / 2;
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       if(!tilePanStart || !Number.isFinite(tilePanStart.pinchDist)){
+        const rect = wrap.getBoundingClientRect();
+        const screenX = cx - rect.left;
+        const screenY = cy - rect.top;
         const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, TILE_MAP.zoom);
+        const anchorWorldX = centerWorld.x + (screenX - wrap.clientWidth / 2);
+        const anchorWorldY = centerWorld.y + (screenY - wrap.clientHeight / 2);
+        const anchorLatLng = unprojectWorld(anchorWorldX, anchorWorldY, TILE_MAP.zoom);
         tilePanStart = {
           pinchDist: dist,
           zoom: TILE_MAP.zoom,
-          centerWorld,
-          midpoint: { x: cx, y: cy }
+          anchorLatLng,
+          midpoint: { x: screenX, y: screenY }
         };
         if(tileTapStart) tileTapStart.moved = true;
         return;
@@ -1075,19 +1081,17 @@ function initTileMap(){
       if(tileTapStart) tileTapStart.moved = true;
       const zoomDelta = Math.log2(Math.max(1, dist) / Math.max(1, tilePanStart.pinchDist));
       const nextZoom = clamp(tilePanStart.zoom + zoomDelta, TILE_MAP.minZoom, TILE_MAP.maxZoom);
-      const prevZoom = TILE_MAP.zoom;
+      const rect = wrap.getBoundingClientRect();
+      const screenX = cx - rect.left;
+      const screenY = cy - rect.top;
+      const anchorWorld = projectLatLng(tilePanStart.anchorLatLng.lat, tilePanStart.anchorLatLng.lng, nextZoom);
+      const nextCenterWorldX = anchorWorld.x - (screenX - wrap.clientWidth / 2);
+      const nextCenterWorldY = anchorWorld.y - (screenY - wrap.clientHeight / 2);
       TILE_MAP.zoom = nextZoom;
-      const scale = 2 ** (nextZoom - tilePanStart.zoom);
-      const viewportDx = cx - tilePanStart.midpoint.x;
-      const viewportDy = cy - tilePanStart.midpoint.y;
-      const nextWorldX = tilePanStart.centerWorld.x - (viewportDx / scale);
-      const nextWorldY = tilePanStart.centerWorld.y - (viewportDy / scale);
       const size = worldSize(nextZoom);
-      TILE_MAP.center = unprojectWorld(nextWorldX, clamp(nextWorldY, 0, size), nextZoom);
-      if(prevZoom !== nextZoom){
-        clampCenterToCrop();
-        scheduleMapViewSave();
-      }
+      TILE_MAP.center = unprojectWorld(nextCenterWorldX, clamp(nextCenterWorldY, 0, size), nextZoom);
+      clampCenterToCrop();
+      scheduleMapViewSave();
       scheduleTileRender();
       return;
     }
