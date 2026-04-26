@@ -1111,13 +1111,13 @@ function initTileMap(){
     if(e.target.closest(".mv-tool") || e.target.closest(".tm-zoom")) return;
     tileTapStart = { x:e.clientX, y:e.clientY, moved:false, target:e.target };
     TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{ wrap.setPointerCapture(e.pointerId); }catch{}
     if(TILE_POINTERS.size === 1){
       tilePanStart = {
         x: e.clientX,
         y: e.clientY,
         center: { ...TILE_MAP.center }
       };
-      try{ wrap.setPointerCapture(e.pointerId); }catch{}
     }
   });
 
@@ -1181,9 +1181,12 @@ function initTileMap(){
   });
 
   const endPointer = e=>{
+    const hadPointer = TILE_POINTERS.has(e.pointerId);
+    if(!hadPointer) return;
     const tap = tileTapStart && !tileTapStart.moved;
     const target = (tileTapStart && tileTapStart.target) || e.target;
     TILE_POINTERS.delete(e.pointerId);
+    try{ wrap.releasePointerCapture(e.pointerId); }catch{}
     if(TILE_POINTERS.size === 1){
       const [rest] = [...TILE_POINTERS.values()];
       tilePanStart = {
@@ -1208,6 +1211,7 @@ function initTileMap(){
   };
   wrap.addEventListener("pointerup",endPointer);
   wrap.addEventListener("pointercancel",endPointer);
+  wrap.addEventListener("lostpointercapture",endPointer);
   wrap.addEventListener("wheel",e=>{
     e.preventDefault();
     if(e.ctrlKey || e.metaKey){
