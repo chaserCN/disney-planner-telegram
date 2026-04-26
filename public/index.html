@@ -198,6 +198,7 @@
   .tm-zoom { position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:4px; z-index:4; }
   .tm-zoom button { width:34px; height:34px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font-size:18px; font-weight:700; cursor:pointer; }
   .tm-compass { position:absolute; left:8px; top:8px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(0,0,0,.65); color:#fff; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; z-index:5; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+  .tm-debug { position:absolute; left:8px; bottom:8px; max-width:60%; padding:6px 8px; background:rgba(0,0,0,.7); color:#7dd3fc; font-family:ui-monospace,monospace; font-size:10px; line-height:1.35; border-radius:6px; z-index:6; pointer-events:none; white-space:pre; }
   .tm-compass svg { width:24px; height:24px; transition:transform .25s ease; display:block; }
   .tm-compass .n { fill:#ef4444; }
   .tm-compass .s { fill:#e2e8f0; }
@@ -986,6 +987,7 @@ function renderTileMap(){
   let html = "";
   let overlayHtml = "";
   let visibleMarkers = 0;
+  let tilesDrawn = 0;
 
   for(let ty = renderMinY; ty <= renderMaxY; ty++){
     if(ty < 0 || ty >= scale) continue;
@@ -995,6 +997,7 @@ function renderTileMap(){
       const top = ty * TILE_SIZE * visualScale - topLeftY;
       const size = TILE_SIZE * visualScale;
       html += `<img class="tm-tile" loading="eager" decoding="async" onerror="this.style.display='none'" style="left:${left}px;top:${top}px;width:${size}px;height:${size}px" src="tiles/${tileZoom}/${wrappedX}/${ty}.jpg" alt="">`;
+      tilesDrawn++;
     }
   }
 
@@ -1111,6 +1114,17 @@ function renderTileMap(){
   }
 
   updateCompass();
+
+  const dbg = document.getElementById("tm-debug");
+  if(dbg){
+    const tileSizeCss = (TILE_SIZE * visualScale).toFixed(1);
+    dbg.textContent =
+      `dpr ${dpr}  boost +${dprBoost}\n`+
+      `zoom ${zoom.toFixed(2)} → tile z${tileZoom}\n`+
+      `tile 512px → ${tileSizeCss} css\n`+
+      `tiles ${tilesDrawn}  markers ${visibleMarkers}\n`+
+      `viewport ${vw}×${vh}  rot ${TILE_MAP.rotation.toFixed(0)}°`;
+  }
 }
 
 function updateCompass(){
@@ -2053,6 +2067,7 @@ function draw(){
     h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
     h+=`<div class="tm-zoom"><button type="button" onclick="zoomInTileMap()">+</button><button type="button" onclick="zoomOutTileMap()">−</button></div>`;
     h+=`<button class="tm-compass" id="tm-compass" type="button" onclick="event.stopPropagation();resetMapRotation()" aria-label="Развернуть на север" style="display:none"><svg viewBox="0 0 24 24"><polygon class="n" points="12,2 16,12 12,10 8,12"/><polygon class="s" points="12,22 16,12 12,14 8,12"/></svg></button>`;
+    h+=`<div class="tm-debug" id="tm-debug"></div>`;
     h+=`</div>`;
   }
 
