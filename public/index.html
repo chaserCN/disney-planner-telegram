@@ -30,7 +30,7 @@
     padding-top: var(--safe-top);
     padding-bottom: var(--safe-bot);
   }
-  body.modal-open { overflow:hidden; }
+  body.modal-open { overflow:hidden; overscroll-behavior:none; }
   .app { max-width: 520px; margin:0 auto; padding: 10px 14px 20px; }
 
   /* Header */
@@ -58,8 +58,8 @@
   .wx-btn:active { background:color-mix(in srgb, var(--ac) 12%, var(--cd)); border-color:color-mix(in srgb, var(--ac) 35%, var(--bd)); }
   .wx { display:inline-flex; align-items:baseline; gap:5px; font-size:15px; line-height:1.1; color:var(--tx); flex-shrink:0; user-select:none; white-space:nowrap; }
   .wx .t { font-size:13px; font-weight:700; color:var(--tx); }
-  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:calc(20px + var(--safe-top)) 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); overflow:auto; overscroll-behavior:contain; touch-action:pan-y; transition:background-color .22s ease, backdrop-filter .22s ease; }
-  .wmc { width:min(520px,100%); max-height:min(calc(100vh - var(--safe-top) - var(--safe-bot) - 32px),760px); overflow:auto; -webkit-overflow-scrolling:touch; background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(11,14,24,.98)); border:1px solid var(--bd); border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.55); padding:14px 16px 12px; margin-top:auto; transition:transform .25s ease; will-change:transform; touch-action:pan-y; }
+  .wmo { position:fixed; inset:0; z-index:40; display:flex; align-items:flex-end; justify-content:center; padding:calc(20px + var(--safe-top)) 12px calc(12px + var(--safe-bot)); background:rgba(3,6,12,.62); backdrop-filter:blur(8px); overflow:hidden; overscroll-behavior:none; touch-action:none; transition:background-color .22s ease, backdrop-filter .22s ease; }
+  .wmc { width:min(520px,100%); max-height:min(calc(100vh - var(--safe-top) - var(--safe-bot) - 32px),760px); overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(11,14,24,.98)); border:1px solid var(--bd); border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.55); padding:14px 16px 12px; margin-top:auto; transition:transform .25s ease; will-change:transform; touch-action:pan-y; }
   .wmc.dragging { transition:none; }
   .wmh { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
   .wmtt { font-size:18px; font-weight:800; }
