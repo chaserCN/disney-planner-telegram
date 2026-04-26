@@ -1232,8 +1232,8 @@ function initTileMap(){
         let angDiff = angle - tilePanStart.startAngle;
         angDiff = ((angDiff % 360) + 540) % 360 - 180;
         const rotMag = Math.abs(angDiff);
-        const ZOOM_LOCK = 0.04;
-        const ROT_LOCK = 10;
+        const ZOOM_LOCK = 0.12;
+        const ROT_LOCK = 8;
         if(zoomMag < ZOOM_LOCK && rotMag < ROT_LOCK) return;
         tilePanStart.mode = (zoomMag / ZOOM_LOCK) >= (rotMag / ROT_LOCK) ? "zoom" : "rotate";
         tilePanStart.pinchDist = dist;
