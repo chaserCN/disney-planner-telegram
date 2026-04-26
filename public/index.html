@@ -2198,7 +2198,7 @@ function mvClosePopup(e){
 
 const TIER_STARS={S:5,A:4,B:3,C:2};
 function tierMinStars(filter){
-  return {all:0,"5":5,"4":4,"3":3}[filter]||0;
+  return {all:0,"5":5,"4":4,"3":3,none:Infinity}[filter]||0;
 }
 
 async function loadBaseline(dayType){
@@ -2325,7 +2325,7 @@ function draw(){
   // ═══ MAP ═══
   if(S.tab==="map"){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
-    h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
+    h+=`<div class="flt">${[["all","Все"],["5","★★★★★"],["4","★★★★"],["3","★★★"],["none","🙈"]].map(([k,l])=>`<button class="pl ${S.mrt===k?"on":""}" onclick="set({mrt:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="mv-wrap" id="mv-wrap">`;
     h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
