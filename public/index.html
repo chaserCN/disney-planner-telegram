@@ -1677,9 +1677,13 @@ function initTileMap(){
     const size = worldSize(z);
     const clampedY = clamp(nextWorldY, 0, size);
     TILE_MAP.center = unprojectWorld(nextWorldX, clampedY, z);
+    clampCenterToCrop();
     if(TILE_MAP.isPanning){
+      const appliedWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
+      const appliedLocalX = startWorld.x - appliedWorld.x;
+      const appliedLocalY = startWorld.y - appliedWorld.y;
       const overlay = document.getElementById("tm-overlay");
-      if(overlay) overlay.style.transform = `translate(${local.x}px, ${local.y}px)`;
+      if(overlay) overlay.style.transform = `translate(${appliedLocalX}px, ${appliedLocalY}px)`;
     }
     scheduleMapViewSave();
     scheduleTileRender();
