@@ -745,7 +745,21 @@ const OVERLAY_DOM = {
   markerLayer: null,
   userLayer: null,
   popupLayer: null,
-  markerCache: new Map()
+  markerCache: new Map(),
+  userArrow: null,
+  userDot: null,
+  popup: null,
+  popupArrow: null,
+  popupName: null,
+  popupIcon: null,
+  popupPark: null,
+  popupLand: null,
+  popupType: null,
+  popupTier: null,
+  popupFastTag: null,
+  popupBadge: null,
+  popupSingleBadge: null,
+  popupBaseText: null
 };
 let MAP_MARKER_ENTRIES = null;
 let MAP_MARKER_COORDS_REF = null;
@@ -955,6 +969,20 @@ function ensureOverlayDom(root){
   if(OVERLAY_DOM.root === root && OVERLAY_DOM.markerLayer && OVERLAY_DOM.userLayer && OVERLAY_DOM.popupLayer) return;
   OVERLAY_DOM.root = root;
   OVERLAY_DOM.markerCache = new Map();
+  OVERLAY_DOM.userArrow = null;
+  OVERLAY_DOM.userDot = null;
+  OVERLAY_DOM.popup = null;
+  OVERLAY_DOM.popupArrow = null;
+  OVERLAY_DOM.popupName = null;
+  OVERLAY_DOM.popupIcon = null;
+  OVERLAY_DOM.popupPark = null;
+  OVERLAY_DOM.popupLand = null;
+  OVERLAY_DOM.popupType = null;
+  OVERLAY_DOM.popupTier = null;
+  OVERLAY_DOM.popupFastTag = null;
+  OVERLAY_DOM.popupBadge = null;
+  OVERLAY_DOM.popupSingleBadge = null;
+  OVERLAY_DOM.popupBaseText = null;
   root.replaceChildren();
   const markerLayer = document.createElement("div");
   markerLayer.className = "tm-marker-layer";
@@ -1174,43 +1202,113 @@ function syncMarkers(markers, counterRotate){
   }
 }
 
-function syncUserMarker(userState, counterRotate){
-  OVERLAY_DOM.userLayer.replaceChildren();
-  if(!userState) return;
-  if(Number.isFinite(userState.heading)){
+function ensureUserMarkerDom(){
+  if(!OVERLAY_DOM.userLayer) return false;
+  if(!OVERLAY_DOM.userArrow){
     const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     arrow.setAttribute("class", "usr-arrow");
     arrow.setAttribute("viewBox", "0 0 48 48");
-    arrow.setAttribute("style", `left:${userState.x}px;top:${userState.y}px;transform:translate(-50%,-50%) rotate(${userState.heading}deg)${counterRotate ? ` ${counterRotate}` : ""}`);
     arrow.innerHTML = `<line class="shaft" x1="24" y1="24" x2="24" y2="10"></line><polygon class="head" points="24,4 18,14 30,14"></polygon>`;
+    arrow.style.display = "none";
     OVERLAY_DOM.userLayer.appendChild(arrow);
+    OVERLAY_DOM.userArrow = arrow;
   }
-  const dot = document.createElement("div");
-  dot.className = "usr-pt";
+  if(!OVERLAY_DOM.userDot){
+    const dot = document.createElement("div");
+    dot.className = "usr-pt";
+    dot.style.display = "none";
+    OVERLAY_DOM.userLayer.appendChild(dot);
+    OVERLAY_DOM.userDot = dot;
+  }
+  return true;
+}
+
+function syncUserMarker(userState, counterRotate){
+  if(!ensureUserMarkerDom()) return;
+  const arrow = OVERLAY_DOM.userArrow;
+  const dot = OVERLAY_DOM.userDot;
+  if(!userState){
+    arrow.style.display = "none";
+    dot.style.display = "none";
+    return;
+  }
+  const dotTransform = counterRotate ? `translate(-50%,-50%) ${counterRotate}` : "translate(-50%,-50%)";
+  dot.style.display = "";
   dot.style.left = `${userState.x}px`;
   dot.style.top = `${userState.y}px`;
-  dot.style.transform = counterRotate ? `translate(-50%,-50%) ${counterRotate}` : "translate(-50%,-50%)";
-  OVERLAY_DOM.userLayer.appendChild(dot);
+  dot.style.transform = dotTransform;
+  if(Number.isFinite(userState.heading)){
+    arrow.style.display = "";
+    arrow.style.left = `${userState.x}px`;
+    arrow.style.top = `${userState.y}px`;
+    arrow.style.transform = `translate(-50%,-50%) rotate(${userState.heading}deg)${counterRotate ? ` ${counterRotate}` : ""}`;
+  } else {
+    arrow.style.display = "none";
+  }
+}
+
+function ensurePopupDom(){
+  if(!OVERLAY_DOM.popupLayer) return false;
+  if(OVERLAY_DOM.popup) return true;
+  const popup = document.createElement("div");
+  popup.className = "mv-popup down";
+  popup.style.display = "none";
+  popup.innerHTML = `<span class="ar"></span>
+    <button class="cl" data-close="1">×</button>
+    <div class="tp"><span class="em"></span><div style="flex:1;min-width:0"><div class="nm"></div></div></div>
+    <div class="sb"><span class="pk"></span><span>·</span><span class="ld"></span><span>·</span><span class="ty"></span></div>
+    <div class="rw"><span class="tier"></span><span class="ft"></span></div>
+    <div class="rw" style="margin-top:5px"><span class="bd"></span><span class="sd"></span></div>
+    <div class="bh"></div>`;
+  OVERLAY_DOM.popupLayer.appendChild(popup);
+  OVERLAY_DOM.popup = popup;
+  OVERLAY_DOM.popupArrow = popup.querySelector(".ar");
+  OVERLAY_DOM.popupName = popup.querySelector(".nm");
+  OVERLAY_DOM.popupIcon = popup.querySelector(".em");
+  OVERLAY_DOM.popupPark = popup.querySelector(".pk");
+  OVERLAY_DOM.popupLand = popup.querySelector(".ld");
+  OVERLAY_DOM.popupType = popup.querySelector(".ty");
+  OVERLAY_DOM.popupTier = popup.querySelector(".tier");
+  OVERLAY_DOM.popupFastTag = popup.querySelector(".ft");
+  OVERLAY_DOM.popupBadge = popup.querySelector(".bd");
+  OVERLAY_DOM.popupSingleBadge = popup.querySelector(".sd");
+  OVERLAY_DOM.popupBaseText = popup.querySelector(".bh");
+  return true;
 }
 
 function syncPopup(popupState, counterRotate){
-  OVERLAY_DOM.popupLayer.replaceChildren();
-  if(!popupState) return;
-  const popup = document.createElement("div");
+  if(!ensurePopupDom()) return;
+  const popup = OVERLAY_DOM.popup;
+  if(!popupState){
+    popup.style.display = "none";
+    return;
+  }
+  popup.style.display = "";
   popup.className = `mv-popup ${popupState.flipUp ? "up" : "down"}`;
   popup.style.left = `${popupState.left}px`;
   popup.style.top = `${popupState.top}px`;
   popup.style.width = `${popupState.width}px`;
   popup.style.transform = counterRotate || "";
   popup.style.transformOrigin = "50% 100%";
-  popup.innerHTML = `<span class="ar" style="left:${popupState.arrowX}px"></span>
-    <button class="cl" data-close="1">×</button>
-    <div class="tp"><span class="em">${popupState.icon}</span><div style="flex:1;min-width:0"><div class="nm">${esc(popupState.name)}</div></div></div>
-    <div class="sb"><span>${popupState.park}</span><span>·</span><span>${popupState.land}</span><span>·</span><span>${popupState.type}</span></div>
-    <div class="rw"><span class="tier t-${popupState.tier}">${popupState.stars}</span>${popupState.fastTag}</div>
-    <div class="rw" style="margin-top:5px">${popupState.badge}${popupState.singleBadge}</div>
-    <div class="bh">${popupState.baseText}</div>`;
-  OVERLAY_DOM.popupLayer.appendChild(popup);
+  OVERLAY_DOM.popupArrow.style.left = `${popupState.arrowX}px`;
+  OVERLAY_DOM.popupIcon.textContent = popupState.icon;
+  OVERLAY_DOM.popupName.textContent = popupState.name;
+  OVERLAY_DOM.popupPark.textContent = popupState.park;
+  OVERLAY_DOM.popupLand.textContent = popupState.land;
+  OVERLAY_DOM.popupType.textContent = popupState.type;
+  OVERLAY_DOM.popupTier.className = `tier t-${popupState.tier}`;
+  OVERLAY_DOM.popupTier.textContent = popupState.stars;
+  OVERLAY_DOM.popupFastTag.innerHTML = popupState.fastTag;
+  OVERLAY_DOM.popupBadge.innerHTML = popupState.badge;
+  OVERLAY_DOM.popupSingleBadge.innerHTML = popupState.singleBadge;
+  OVERLAY_DOM.popupBaseText.textContent = popupState.baseText;
+}
+
+function getTileGestureRect(wrap){
+  if(tilePanStart && tilePanStart.rect) return tilePanStart.rect;
+  const rect = wrap.getBoundingClientRect();
+  if(tilePanStart) tilePanStart.rect = rect;
+  return rect;
 }
 
 function renderTileMap(){
@@ -1475,7 +1573,8 @@ function initTileMap(){
       tilePanStart = {
         x: e.clientX,
         y: e.clientY,
-        center: { ...TILE_MAP.center }
+        center: { ...TILE_MAP.center },
+        rect: wrap.getBoundingClientRect()
       };
     }
   });
@@ -1490,7 +1589,7 @@ function initTileMap(){
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
       if(!tilePanStart || !Number.isFinite(tilePanStart.pinchDist)){
-        const rect = wrap.getBoundingClientRect();
+        const rect = getTileGestureRect(wrap);
         const screenX = cx - rect.left;
         const screenY = cy - rect.top;
         const centerWorld = projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, TILE_MAP.zoom);
@@ -1524,7 +1623,7 @@ function initTileMap(){
         tilePanStart.zoom = TILE_MAP.zoom;
         tilePanStart.startRotation = TILE_MAP.rotation;
       }
-      const rect = wrap.getBoundingClientRect();
+      const rect = getTileGestureRect(wrap);
       const screenX = cx - rect.left;
       const screenY = cy - rect.top;
       let nextZoom = tilePanStart.zoom;
@@ -1579,7 +1678,8 @@ function initTileMap(){
       tilePanStart = {
         x: rest.x,
         y: rest.y,
-        center: { ...TILE_MAP.center }
+        center: { ...TILE_MAP.center },
+        rect: wrap.getBoundingClientRect()
       };
     } else if(TILE_POINTERS.size === 0){
       tilePanStart = null;
