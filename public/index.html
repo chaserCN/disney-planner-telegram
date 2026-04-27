@@ -702,7 +702,8 @@ const TILE_MAP = {
   zoom: 16,
   center: { lat: 48.86979615501914, lng: 2.785484790802002 },
   rotation: 0,
-  mounted: false
+  mounted: false,
+  isPanning: false
 };
 const ROTATION_SNAP_DEG = 6;
 const GEO_TEST_OVERRIDE = {
@@ -712,7 +713,7 @@ const GEO_TEST_OVERRIDE = {
   heading: 90
 };
 const MAP_VIEW_STORAGE_KEY = "dlp.map.view.v1";
-const TILE_OVERSCAN = 1;
+const TILE_OVERSCAN = 2;
 const TILE_TRANSITION_WAIT_COUNT = 12;
 const TILE_TRANSITION_TIMEOUT_MS = 450;
 const TILE_POINTERS = new Map();
@@ -1392,6 +1393,8 @@ function renderTileMap(){
     if(TILE_DOM.previousLayer && TILE_DOM.previousLayer.childElementCount) queuePreviousTileCleanup();
   }
 
+  if(TILE_MAP.isPanning) return;
+
   const minStars = tierMinStars(S.mrt);
   const zoomNorm = (zoom - TILE_MAP.minZoom) / Math.max(1, TILE_MAP.maxZoom - TILE_MAP.minZoom);
   const markerSize = Math.round(30 + zoomNorm * 18); // 30..48 px
@@ -1519,6 +1522,14 @@ function scheduleTileRender(){
   });
 }
 
+function stopFastPan(){
+  if(!TILE_MAP.isPanning) return;
+  TILE_MAP.isPanning = false;
+  const overlay = document.getElementById("tm-overlay");
+  if(overlay) overlay.style.transform = "";
+  scheduleTileRender();
+}
+
 function setTileZoom(nextZoom){
   TILE_MAP.zoom = clamp(nextZoom, TILE_MAP.minZoom, TILE_MAP.maxZoom);
   clampCenterToCrop();
@@ -1576,6 +1587,9 @@ function initTileMap(){
         center: { ...TILE_MAP.center },
         rect: wrap.getBoundingClientRect()
       };
+      TILE_MAP.isPanning = TILE_MAP.rotation === 0;
+    } else if(TILE_POINTERS.size >= 2){
+      stopFastPan();
     }
   });
 
@@ -1583,6 +1597,7 @@ function initTileMap(){
     if(!TILE_POINTERS.has(e.pointerId)) return;
     TILE_POINTERS.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(TILE_POINTERS.size === 2){
+      stopFastPan();
       const [a,b] = [...TILE_POINTERS.values()];
       const cx = (a.x + b.x) / 2;
       const cy = (a.y + b.y) / 2;
@@ -1662,6 +1677,10 @@ function initTileMap(){
     const size = worldSize(z);
     const clampedY = clamp(nextWorldY, 0, size);
     TILE_MAP.center = unprojectWorld(nextWorldX, clampedY, z);
+    if(TILE_MAP.isPanning){
+      const overlay = document.getElementById("tm-overlay");
+      if(overlay) overlay.style.transform = `translate(${local.x}px, ${local.y}px)`;
+    }
     scheduleMapViewSave();
     scheduleTileRender();
   });
@@ -1683,6 +1702,7 @@ function initTileMap(){
       };
     } else if(TILE_POINTERS.size === 0){
       tilePanStart = null;
+      stopFastPan();
     }
     tileTapStart = null;
     if(!tap) return;
