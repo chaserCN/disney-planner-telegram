@@ -554,7 +554,7 @@ function renderImageViewer(){
   const image=S.imageViewer;
   if(!image)return "";
   return `<div class="imo" onclick="closeImageViewer()">
-    <div class="panel" onclick="event.stopPropagation()">
+    <div class="panel" onclick="closeImageViewer(event)">
       <button class="close" type="button" onclick="closeImageViewer(event)" aria-label="Закрыть">×</button>
       <img src="${image.full}" alt="${attr(image.name)}">
       <div class="cap">${esc(image.name)}</div>
@@ -1997,7 +1997,7 @@ function initPullToRefresh(){
   const getScrollTop=()=>window.scrollY||document.documentElement.scrollTop||0;
 
   document.addEventListener("touchstart",e=>{
-    if(S.weatherOpen)return;
+    if(S.weatherOpen||S.imageViewer)return;
     if(busy)return;
     if(e.target.closest(".mv-wrap"))return;
     if(getScrollTop()>0)return;
@@ -2006,7 +2006,7 @@ function initPullToRefresh(){
   },{passive:true});
 
   document.addEventListener("touchmove",e=>{
-    if(S.weatherOpen)return;
+    if(S.weatherOpen||S.imageViewer)return;
     if(startY===null||busy)return;
     dy=e.touches[0].clientY-startY;
     if(dy<=0){if(active){active=false;updatePtr(0,false)}return}
@@ -2017,7 +2017,7 @@ function initPullToRefresh(){
   },{passive:true});
 
   document.addEventListener("touchend",()=>{
-    if(S.weatherOpen){startY=null;dy=0;active=false;return}
+    if(S.weatherOpen||S.imageViewer){startY=null;dy=0;active=false;return}
     if(startY===null){return}
     const wasReady=dy*0.5>=THRESHOLD;
     startY=null;dy=0;
@@ -2055,8 +2055,9 @@ function initPullToRefresh(){
 
 function initModalInteractionLock(){
   const blockBackground=e=>{
-    if(!S.weatherOpen)return;
-    if(e.target.closest(".wmc"))return;
+    if(!S.weatherOpen&&!S.imageViewer)return;
+    if(S.weatherOpen&&e.target.closest(".wmc"))return;
+    if(S.imageViewer&&e.target.closest(".panel"))return;
     e.preventDefault();
   };
   document.addEventListener("touchmove",blockBackground,{passive:false});
