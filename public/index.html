@@ -264,6 +264,7 @@
 
   .imo { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:calc(16px + var(--safe-top)) 12px calc(16px + var(--safe-bot)); background:rgba(2,6,23,.92); backdrop-filter:blur(10px); }
   .imo .panel { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .imo .panel.dragging { transition:none; }
   .imo img { max-width:min(100%, 980px); max-height:100%; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.45); object-fit:contain; background:#020617; }
   .imo .cap { position:absolute; left:0; right:0; bottom:0; text-align:center; font-size:13px; font-weight:700; color:#cbd5e1; padding:12px 56px 2px; }
   .imo .close { position:absolute; top:0; right:0; width:40px; height:40px; border:none; border-radius:50%; background:rgba(255,255,255,.10); color:#fff; font-size:26px; line-height:1; cursor:pointer; }
@@ -559,6 +560,70 @@ function renderImageViewer(){
       <div class="cap">${esc(image.name)}</div>
     </div>
   </div>`;
+}
+function attachImageViewerDrag(){
+  const imo=document.querySelector(".imo");
+  const panel=imo?.querySelector(".panel");
+  if(!imo||!panel||panel.dataset.dragBound)return;
+  panel.dataset.dragBound="1";
+  let startY=null,startX=null,dy=0,dragging=false,decided=false;
+  const apply=y=>{
+    panel.style.transform=`translateY(${y}px)`;
+    const progress=Math.min(1,Math.abs(y)/220);
+    imo.style.background=`rgba(2,6,23,${(0.92-(progress*0.42)).toFixed(3)})`;
+  };
+  const reset=(animate=true)=>{
+    if(animate) panel.classList.remove("dragging");
+    panel.style.transform="";
+    imo.style.background="";
+  };
+  panel.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1)return;
+    const t=e.touches[0];
+    startY=t.clientY;
+    startX=t.clientX;
+    dy=0;dragging=false;decided=false;
+  },{passive:true});
+  panel.addEventListener("touchmove",e=>{
+    if(startY===null||e.touches.length!==1)return;
+    const t=e.touches[0];
+    const currentDy=t.clientY-startY;
+    const currentDx=t.clientX-startX;
+    if(!decided){
+      const ady=Math.abs(currentDy), adx=Math.abs(currentDx);
+      if(ady<8&&adx<8)return;
+      decided=true;
+      if(currentDy>0&&ady>adx){
+        dragging=true;
+        panel.classList.add("dragging");
+      }else{
+        startY=null;
+        return;
+      }
+    }
+    if(!dragging)return;
+    e.preventDefault();
+    dy=Math.max(0,currentDy);
+    apply(dy);
+  },{passive:false});
+  const finish=()=>{
+    const finalDy=dy;
+    const wasDragging=dragging;
+    startY=null;
+    startX=null;
+    dy=0;dragging=false;decided=false;
+    panel.classList.remove("dragging");
+    if(wasDragging&&finalDy>120){
+      const target=Math.max(finalDy,panel.offsetHeight*0.9);
+      panel.style.transform=`translateY(${target}px)`;
+      imo.style.background="rgba(2,6,23,0)";
+      setTimeout(()=>{reset(false);closeImageViewer();},220);
+      return;
+    }
+    reset(true);
+  };
+  panel.addEventListener("touchend",finish,{passive:true});
+  panel.addEventListener("touchcancel",finish,{passive:true});
 }
 function weatherSetDay(delta,e){
   if(e)e.stopPropagation();
@@ -2560,6 +2625,7 @@ function draw(){
   $.innerHTML=h;
 
   if(S.weatherOpen)attachWeatherDrag();
+  if(S.imageViewer)attachImageViewerDrag();
 
   if(S.tab==="map")requestAnimationFrame(()=>{initTileMap();renderTileMap()});
 }
