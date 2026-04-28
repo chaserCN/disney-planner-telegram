@@ -1439,7 +1439,9 @@ function syncPopup(popupState, counterRotate){
 
   const popupW = popup.offsetWidth;
   const popupH = popup.offsetHeight;
-  const flipUp = popupState.anchorY + popupState.gap + popupH > popupState.viewportMaxY - 8;
+  const fitsBelow = popupState.anchorY + popupState.gap + popupH <= popupState.viewportMaxY - 8;
+  const fitsAbove = popupState.anchorY - popupState.gap - popupH >= popupState.viewportMinY + 8;
+  const flipUp = !fitsBelow && fitsAbove;
   const top = flipUp
     ? Math.max(popupState.viewportMinY + 8, popupState.anchorY - popupState.gap - popupH)
     : Math.min(popupState.viewportMaxY - popupH - 8, popupState.anchorY + popupState.gap);
@@ -1448,11 +1450,13 @@ function syncPopup(popupState, counterRotate){
     Math.max(popupState.viewportMinX + 8, popupState.anchorX - popupW / 2)
   );
   const arrowX = Math.min(popupW - 12, Math.max(12, popupState.anchorX - left));
+  const showArrow = fitsBelow || fitsAbove;
 
   popup.className = `mv-popup ${flipUp ? "up" : "down"}`;
   popup.style.left = `${left}px`;
   popup.style.top = `${top}px`;
   OVERLAY_DOM.popupArrow.style.left = `${arrowX}px`;
+  OVERLAY_DOM.popupArrow.style.display = showArrow ? "" : "none";
   popup.style.visibility = "";
 }
 
