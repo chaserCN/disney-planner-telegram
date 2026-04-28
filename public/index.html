@@ -545,6 +545,10 @@ function openImageViewer(name,e){
   if(!image)return;
   set({imageViewer:{name, ...image}});
 }
+function openMapPopupImage(name,e){
+  openImageViewer(name,e);
+  set({msel:null}, { silent: true });
+}
 function closeImageViewer(e){
   if(e)e.stopPropagation();
   if(!S.imageViewer)return;
@@ -1614,7 +1618,7 @@ function renderTileMap(){
         const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
         const image=rideImageAsset(n);
         const photoHtml=image
-          ? `<button class="phb" type="button" data-ride="${attr(n)}" onclick="openImageViewer(this.dataset.ride,event)" aria-label="Открыть фото ${attr(n)}"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></button>`
+          ? `<button class="phb" type="button" data-ride="${attr(n)}" onclick="openMapPopupImage(this.dataset.ride,event)" aria-label="Открыть фото ${attr(n)}"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></button>`
           : `<div class="php" aria-hidden="true">No image</div>`;
         const popupW=Math.min(292, wrap.clientWidth-16);
         const gap=16;
@@ -1870,7 +1874,7 @@ function initTileMap(){
     const popupPhoto = target.closest(".phb");
     if(popupPhoto){
       const name = popupPhoto.getAttribute("data-ride");
-      if(name) openImageViewer(name);
+      if(name) openMapPopupImage(name);
       return;
     }
     const marker = target.closest(".tm-pt");
