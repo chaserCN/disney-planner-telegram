@@ -93,16 +93,21 @@
   .psh .hr { font-size:11px; color:var(--mu); }
 
   /* Ride card — touch friendly */
-  .rc { display:flex; align-items:center; gap:9px; padding:11px 10px; background:var(--cd); border-radius:10px; margin-bottom:6px; }
+  .rc { display:flex; align-items:flex-start; gap:14px; padding:12px; background:linear-gradient(180deg, rgba(19,24,39,.98), rgba(15,23,42,.98)); border:1px solid rgba(148,163,184,.12); border-radius:16px; margin-bottom:8px; box-shadow:0 10px 26px rgba(2,6,23,.24); }
   .rc.dlp { border-left:3px solid var(--dlp); }
   .rc.st { border-left:3px solid var(--st); }
-  .rc .ic { font-size:22px; line-height:1; flex-shrink:0; width:30px; text-align:center; }
-  .rc .bd { flex:1; min-width:0; }
-  .rc .hd { display:flex; align-items:flex-start; gap:6px; }
-  .rc .hd .rn { flex:1; min-width:0; font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .rc .rm { font-size:11px; color:var(--mu); margin-top:2px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+  .rc .bd { flex:1; min-width:0; padding-top:2px; }
+  .rc .hd { display:flex; align-items:flex-start; gap:8px; }
+  .rc .hd .rn { flex:1; min-width:0; font-weight:800; font-size:15px; line-height:1.25; }
+  .rc .rm { font-size:11px; color:var(--mu); margin-top:4px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; line-height:1.4; }
   .rc .tags { margin-top:6px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
   .rc .bh { font-size:11px; color:var(--mu); margin-top:6px; }
+  .rc .media { width:112px; flex-shrink:0; }
+  .rc .imbtn, .rc .imph { width:100%; aspect-ratio:1/1; border-radius:14px; overflow:hidden; }
+  .rc .imbtn { position:relative; border:none; padding:0; cursor:zoom-in; background:#0f172a; }
+  .rc .imbtn img { width:100%; height:100%; object-fit:cover; display:block; }
+  .rc .imbtn::after { content:"⛶"; position:absolute; right:8px; bottom:8px; width:22px; height:22px; border-radius:50%; background:rgba(15,23,42,.78); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
+  .rc .imph { display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(15,23,42,.92)); border:1px dashed rgba(148,163,184,.25); color:#94a3b8; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
   .tier { font-size:10px; font-weight:800; padding:2px 6px; border-radius:3px; white-space:nowrap; letter-spacing:0; }
   .t-S { background:#8b5cf6; color:#fff; }
   .t-A { background:#a78bfa; color:#fff; }
@@ -221,15 +226,21 @@
   .mv-legend .d { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:3px; vertical-align:middle; }
   .mv-tools { position:absolute; right:8px; top:8px; display:flex; gap:6px; z-index:3; }
   .mv-tool { padding:7px 10px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
-  .mv-popup { position:absolute; width:280px; max-width:calc(100% - 16px); padding:12px 14px; background:var(--cd); border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.55); z-index:10; border:1px solid var(--bd); pointer-events:auto; }
+  .mv-popup { position:absolute; width:292px; max-width:calc(100% - 16px); padding:12px; background:linear-gradient(180deg, rgba(19,24,39,.98), rgba(15,23,42,.98)); border-radius:16px; box-shadow:0 10px 26px rgba(0,0,0,.55); z-index:10; border:1px solid rgba(148,163,184,.12); pointer-events:auto; }
   .mv-popup .cl { position:absolute; top:4px; right:6px; width:30px; height:30px; border-radius:50%; border:none; background:transparent; color:var(--mu); font-size:22px; cursor:pointer; line-height:1; }
-  .mv-popup .tp { display:flex; align-items:center; gap:10px; margin-bottom:6px; padding-right:28px; }
-  .mv-popup .tp .em { font-size:26px; }
-  .mv-popup .tp .nm { font-weight:800; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mv-popup .ph { width:100%; aspect-ratio:16/10; border-radius:12px; overflow:hidden; margin-bottom:10px; }
+  .mv-popup .phb, .mv-popup .php { width:100%; height:100%; border:none; padding:0; background:#0f172a; display:flex; align-items:center; justify-content:center; }
+  .mv-popup .phb { position:relative; cursor:zoom-in; }
+  .mv-popup .phb img { width:100%; height:100%; object-fit:contain; display:block; background:#0f172a; }
+  .mv-popup .phb::after { content:"⛶"; position:absolute; right:8px; bottom:8px; width:22px; height:22px; border-radius:50%; background:rgba(15,23,42,.78); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
+  .mv-popup .php { border:1px dashed rgba(148,163,184,.25); border-radius:12px; color:#94a3b8; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(15,23,42,.92)); }
+  .mv-popup .tp { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; padding-right:28px; }
+  .mv-popup .tp .nm { flex:1; min-width:0; font-weight:800; font-size:15px; line-height:1.25; }
+  .mv-popup .tp .tier { margin-left:auto; flex-shrink:0; }
   .mv-popup .sb { font-size:12px; color:var(--mu); display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; line-height:1.4; }
   .mv-popup .rw { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .mv-popup .bh { font-size:12px; color:var(--mu); margin-top:8px; line-height:1.5; }
-  .mv-popup .ar { position:absolute; width:10px; height:10px; background:var(--cd); border:1px solid var(--bd); transform:rotate(45deg); }
+  .mv-popup .ar { position:absolute; width:10px; height:10px; background:var(--cd); border:1px solid var(--bd); transform:translateX(-50%) rotate(45deg); }
   .mv-popup.up .ar { bottom:-6px; border-top:none; border-left:none; }
   .mv-popup.down .ar { top:-6px; border-bottom:none; border-right:none; }
 
@@ -251,6 +262,18 @@
   .ptr.spn .ic { animation:ptr-spin .8s linear infinite; }
   @keyframes ptr-spin { to { transform:rotate(360deg) } }
 
+  .imo { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:calc(16px + var(--safe-top)) 12px calc(16px + var(--safe-bot)); background:rgba(2,6,23,.92); backdrop-filter:blur(10px); }
+  .imo .panel { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .imo img { max-width:min(100%, 980px); max-height:100%; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.45); object-fit:contain; background:#020617; }
+  .imo .cap { position:absolute; left:0; right:0; bottom:0; text-align:center; font-size:13px; font-weight:700; color:#cbd5e1; padding:12px 56px 2px; }
+  .imo .close { position:absolute; top:0; right:0; width:40px; height:40px; border:none; border-radius:50%; background:rgba(255,255,255,.10); color:#fff; font-size:26px; line-height:1; cursor:pointer; }
+
+  @media (max-width: 390px) {
+    .rc { gap:12px; padding:11px; }
+    .rc .media { width:100px; }
+    .rc .hd .rn { font-size:14px; }
+  }
+
 </style>
 </head>
 <body>
@@ -271,6 +294,29 @@ const { R } = window.RIDES_DATA;
 
 const P = { d:{n:"Главный парк",s:"Главный",c:"#f472b6",e:"🏰",h:"09:30–22:40"}, s:{n:"Парк Adventure World",s:"Adventure",c:"#60a5fa",e:"🎬",h:"09:30–22:40"} };
 const T = {S:{bg:"#8b5cf6",tx:"#fff",lb:"5 звёзд",stars:"★★★★★"},A:{bg:"#a78bfa",tx:"#fff",lb:"4 звезды",stars:"★★★★"},B:{bg:"#c4b5fd",tx:"#2e1065",lb:"3 звезды",stars:"★★★"},C:{bg:"#94a3b8",tx:"#1e293b",lb:"2 звезды",stars:"★★"}};
+const RIDE_IMAGES = {
+  "Autopia": { thumb:"/ride-images/thumbs/autopia.jpg", full:"/ride-images/full/autopia.jpg" },
+  "Avengers Assemble": { thumb:"/ride-images/thumbs/avengers-assemble.jpg", full:"/ride-images/full/avengers-assemble.jpg" },
+  "Big Thunder Mountain": { thumb:"/ride-images/thumbs/big-thunder-mountain.jpg", full:"/ride-images/full/big-thunder-mountain.jpg" },
+  "Snow White and the Seven Dwarfs": { thumb:"/ride-images/thumbs/snow-white-and-the-seven-dwarfs.jpg", full:"/ride-images/full/snow-white-and-the-seven-dwarfs.jpg" },
+  "Buzz Lightyear Laser Blast": { thumb:"/ride-images/thumbs/buzz-lightyear-laser-blast.jpg", full:"/ride-images/full/buzz-lightyear-laser-blast.jpg" },
+  "Cars Road Trip": { thumb:"/ride-images/thumbs/cars-road-trip.jpg", full:"/ride-images/full/cars-road-trip.jpg" },
+  "Crush's Coaster": { thumb:"/ride-images/thumbs/crushs-coaster.jpg", full:"/ride-images/full/crushs-coaster.jpg" },
+  "Frozen Ever After": { thumb:"/ride-images/thumbs/frozen-ever-after.jpg", full:"/ride-images/full/frozen-ever-after.jpg" },
+  "Hyperspace Mountain": { thumb:"/ride-images/thumbs/hyperspace-mountain.jpg", full:"/ride-images/full/hyperspace-mountain.jpg" },
+  "Indiana Jones": { thumb:"/ride-images/thumbs/indiana-jones.jpg", full:"/ride-images/full/indiana-jones.jpg" },
+  "Orbitron": { thumb:"/ride-images/thumbs/orbitron.jpg", full:"/ride-images/full/orbitron.jpg" },
+  "Peter Pan's Flight": { thumb:"/ride-images/thumbs/peter-pans-flight.jpg", full:"/ride-images/full/peter-pans-flight.jpg" },
+  "Phantom Manor": { thumb:"/ride-images/thumbs/phantom-manor.jpg", full:"/ride-images/full/phantom-manor.jpg" },
+  "Pirates of the Caribbean": { thumb:"/ride-images/thumbs/pirates-of-the-caribbean.jpg", full:"/ride-images/full/pirates-of-the-caribbean.jpg" },
+  "RC Racer": { thumb:"/ride-images/thumbs/rc-racer.jpg", full:"/ride-images/full/rc-racer.jpg" },
+  "Ratatouille": { thumb:"/ride-images/thumbs/ratatouille.jpg", full:"/ride-images/full/ratatouille.jpg" },
+  "Spider-Man W.E.B.": { thumb:"/ride-images/thumbs/spider-man-web.jpg", full:"/ride-images/full/spider-man-web.jpg" },
+  "Star Tours": { thumb:"/ride-images/thumbs/star-tours.jpg", full:"/ride-images/full/star-tours.jpg" },
+  "Tower of Terror": { thumb:"/ride-images/thumbs/tower-of-terror.jpg", full:"/ride-images/full/tower-of-terror.jpg" },
+  "Toy Soldiers": { thumb:"/ride-images/thumbs/toy-soldiers.jpg", full:"/ride-images/full/toy-soldiers.jpg" },
+  "It's a Small World": { thumb:"/ride-images/thumbs/its-a-small-world.jpg", full:"/ride-images/full/its-a-small-world.jpg" }
+};
 const DEFAULT_CALIBRATION_POINTS = [
   {id:1,name:"Cal 1",lat:48.87261,lng:2.77677,mx:58.28,my:29.81},
   {id:2,name:"Cal 2",lat:48.86689,lng:2.77927,mx:81.25,my:75.19},
@@ -318,6 +364,7 @@ const wc=m=>m<=10?"#22c55e":m<=25?"#84cc16":m<=40?"#eab308":m<=60?"#f97316":"#ef
 const esc=s=>(s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;");
 const attr=s=>(s+"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;");
 const pk=k=>k==="d"?"dlp":"st";
+const rideImageAsset=n=>RIDE_IMAGES[n]||null;
 const liveRide=(n,m)=>S.live?.[m.id]||S.live?.[n];
 const singleRide=(n,m)=>{
   const lv=liveRide(n,m);
@@ -354,7 +401,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null,imageViewer:null};
 const weatherLocalParts=s=>{
   const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s||"");
   if(!m)return null;
@@ -490,6 +537,28 @@ function closeWeatherModal(e){
   if(e)e.stopPropagation();
   if(!S.weatherOpen)return;
   set({weatherOpen:false});
+}
+function openImageViewer(name,e){
+  if(e)e.stopPropagation();
+  const image = rideImageAsset(name);
+  if(!image)return;
+  set({imageViewer:{name, ...image}});
+}
+function closeImageViewer(e){
+  if(e)e.stopPropagation();
+  if(!S.imageViewer)return;
+  set({imageViewer:null});
+}
+function renderImageViewer(){
+  const image=S.imageViewer;
+  if(!image)return "";
+  return `<div class="imo" onclick="closeImageViewer()">
+    <div class="panel" onclick="event.stopPropagation()">
+      <button class="close" type="button" onclick="closeImageViewer(event)" aria-label="Закрыть">×</button>
+      <img src="${image.full}" alt="${attr(image.name)}">
+      <div class="cap">${esc(image.name)}</div>
+    </div>
+  </div>`;
 }
 function weatherSetDay(delta,e){
   if(e)e.stopPropagation();
@@ -751,8 +820,8 @@ const OVERLAY_DOM = {
   userDot: null,
   popup: null,
   popupArrow: null,
+  popupPhoto: null,
   popupName: null,
-  popupIcon: null,
   popupPark: null,
   popupLand: null,
   popupType: null,
@@ -974,8 +1043,8 @@ function ensureOverlayDom(root){
   OVERLAY_DOM.userDot = null;
   OVERLAY_DOM.popup = null;
   OVERLAY_DOM.popupArrow = null;
+  OVERLAY_DOM.popupPhoto = null;
   OVERLAY_DOM.popupName = null;
-  OVERLAY_DOM.popupIcon = null;
   OVERLAY_DOM.popupPark = null;
   OVERLAY_DOM.popupLand = null;
   OVERLAY_DOM.popupType = null;
@@ -1256,16 +1325,17 @@ function ensurePopupDom(){
   popup.style.display = "none";
   popup.innerHTML = `<span class="ar"></span>
     <button class="cl" data-close="1">×</button>
-    <div class="tp"><span class="em"></span><div style="flex:1;min-width:0"><div class="nm"></div></div></div>
+    <div class="ph"></div>
+    <div class="tp"><div class="nm"></div><span class="tier"></span></div>
     <div class="sb"><span class="pk"></span><span>·</span><span class="ld"></span><span>·</span><span class="ty"></span></div>
-    <div class="rw"><span class="tier"></span><span class="ft"></span></div>
+    <div class="rw"><span class="ft"></span></div>
     <div class="rw" style="margin-top:5px"><span class="bd"></span><span class="sd"></span></div>
     <div class="bh"></div>`;
   OVERLAY_DOM.popupLayer.appendChild(popup);
   OVERLAY_DOM.popup = popup;
   OVERLAY_DOM.popupArrow = popup.querySelector(".ar");
+  OVERLAY_DOM.popupPhoto = popup.querySelector(".ph");
   OVERLAY_DOM.popupName = popup.querySelector(".nm");
-  OVERLAY_DOM.popupIcon = popup.querySelector(".em");
   OVERLAY_DOM.popupPark = popup.querySelector(".pk");
   OVERLAY_DOM.popupLand = popup.querySelector(".ld");
   OVERLAY_DOM.popupType = popup.querySelector(".ty");
@@ -1284,15 +1354,13 @@ function syncPopup(popupState, counterRotate){
     popup.style.display = "none";
     return;
   }
+  popup.style.visibility = "hidden";
   popup.style.display = "";
-  popup.className = `mv-popup ${popupState.flipUp ? "up" : "down"}`;
-  popup.style.left = `${popupState.left}px`;
-  popup.style.top = `${popupState.top}px`;
-  popup.style.width = `${popupState.width}px`;
+  popup.className = "mv-popup down";
+  popup.style.width = `${popupState.preferredWidth}px`;
   popup.style.transform = counterRotate || "";
   popup.style.transformOrigin = "50% 100%";
-  OVERLAY_DOM.popupArrow.style.left = `${popupState.arrowX}px`;
-  OVERLAY_DOM.popupIcon.textContent = popupState.icon;
+  OVERLAY_DOM.popupPhoto.innerHTML = popupState.photoHtml;
   OVERLAY_DOM.popupName.textContent = popupState.name;
   OVERLAY_DOM.popupPark.textContent = popupState.park;
   OVERLAY_DOM.popupLand.textContent = popupState.land;
@@ -1302,7 +1370,25 @@ function syncPopup(popupState, counterRotate){
   OVERLAY_DOM.popupFastTag.innerHTML = popupState.fastTag;
   OVERLAY_DOM.popupBadge.innerHTML = popupState.badge;
   OVERLAY_DOM.popupSingleBadge.innerHTML = popupState.singleBadge;
-  OVERLAY_DOM.popupBaseText.textContent = popupState.baseText;
+  OVERLAY_DOM.popupBaseText.innerHTML = popupState.baseText;
+
+  const popupW = popup.offsetWidth;
+  const popupH = popup.offsetHeight;
+  const flipUp = popupState.anchorY + popupState.gap + popupH > popupState.viewportMaxY - 8;
+  const top = flipUp
+    ? Math.max(popupState.viewportMinY + 8, popupState.anchorY - popupState.gap - popupH)
+    : Math.min(popupState.viewportMaxY - popupH - 8, popupState.anchorY + popupState.gap);
+  const left = Math.min(
+    popupState.viewportMaxX - popupW - 8,
+    Math.max(popupState.viewportMinX + 8, popupState.anchorX - popupW / 2)
+  );
+  const arrowX = Math.min(popupW - 12, Math.max(12, popupState.anchorX - left));
+
+  popup.className = `mv-popup ${flipUp ? "up" : "down"}`;
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+  OVERLAY_DOM.popupArrow.style.left = `${arrowX}px`;
+  popup.style.visibility = "";
 }
 
 function getTileGestureRect(wrap){
@@ -1457,24 +1543,24 @@ function renderTileMap(){
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
         const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
         const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
-        const popupW=Math.min(280, wrap.clientWidth-16);
-        const popupH=170;
+        const image=rideImageAsset(n);
+        const photoHtml=image
+          ? `<button class="phb" type="button" data-ride="${attr(n)}" onclick="openImageViewer(this.dataset.ride,event)" aria-label="Открыть фото ${attr(n)}"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></button>`
+          : `<div class="php" aria-hidden="true">No image</div>`;
+        const popupW=Math.min(292, wrap.clientWidth-16);
         const gap=16;
-        const flipUp=py+gap+popupH>visibleMaxY-8;
-        const top=flipUp
-          ? Math.max(visibleMinY+8, py-gap-popupH)
-          : Math.min(visibleMaxY-popupH-8, py+gap);
-        const left=Math.min(visibleMaxX-popupW-8, Math.max(visibleMinX+8, px-popupW/2));
-        const ax=Math.min(popupW-14,Math.max(4,px-left-5));
         popupState = {
-          flipUp,
-          left,
-          top,
-          width: popupW,
-          arrowX: ax,
-          icon: m.i,
+          preferredWidth: popupW,
+          anchorX: px,
+          anchorY: py,
+          viewportMinX: visibleMinX,
+          viewportMaxX: visibleMaxX,
+          viewportMinY: visibleMinY,
+          viewportMaxY: visibleMaxY,
+          gap,
+          photoHtml,
           name: n,
-          park: `${P[m.p].e} ${P[m.p].s}`,
+          park: P[m.p].s,
           land: m.l,
           type: m.tp,
           tier: m.t,
@@ -1712,6 +1798,12 @@ function initTileMap(){
     if(!tap) return;
     if(target.closest(".mv-tool") || target.closest(".tm-zoom") || target.closest(".tm-compass")) return;
     if(target.closest("[data-close]")) { mvClosePopup(); return; }
+    const popupPhoto = target.closest(".phb");
+    if(popupPhoto){
+      const name = popupPhoto.getAttribute("data-ride");
+      if(name) openImageViewer(name);
+      return;
+    }
     const marker = target.closest(".tm-pt");
     if(marker){
       const name = marker.getAttribute("data-ride");
@@ -2357,7 +2449,7 @@ function rideWaitSort(entries,includeSingle){
 
 function draw(){
   const $=document.getElementById("app");
-  document.body.classList.toggle("modal-open", !!S.weatherOpen);
+  document.body.classList.toggle("modal-open", !!S.weatherOpen || !!S.imageViewer);
   const fl=Object.entries(R).filter(([_,m])=>S.pf==="all"||m.p===S.pf).sort((a,b)=>"SABC".indexOf(a[1].t)-"SABC".indexOf(b[1].t));
   const bp=k=>fl.filter(([_,m])=>m.p===k);
   const hasLive=!!S.live&&Object.keys(S.live).length>0;
@@ -2381,6 +2473,7 @@ function draw(){
     h+=`<div class="flt">${[["all","Все"],["d","🏰 Главный парк"],["s","🎬 Adventure"]].map(([k,l])=>`<button class="pl ${S.pf===k?(k==="all"?"on":k==="d"?"on-d":"on-s"):""}" onclick="set({pf:'${k}'})">${l}</button>`).join("")}</div>`;
     h+=`<div class="flt">${[["tier","По рейтингу"],["wait","По времени"],["waitSingle","В одиночку"]].map(([k,l])=>`<button class="pl ${S.rsort===k?"on":""}" onclick="set({rsort:'${k}'})">${l}</button>`).join("")}</div>`;
     const renderCard=([n,m])=>{
+      const image=rideImageAsset(n);
       const lv=liveRide(n,m);
       const slv=singleRide(n,m);
       const paid=paidRide(n,m);
@@ -2393,7 +2486,10 @@ function draw(){
       }
       const fastInline=hasPremierAccess(n,m)?`<span>·</span><span class="tg-p${paid&&!paid.available?' so':''}">${paidCompact(paid)}</span>`:'';
       const tagsOrder=S.rsort==="waitSingle"?`${singleBadge}${badge}`:`${badge}${singleBadge}`;
-      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="ic">${m.i}</div><div class="bd"><div class="hd"><div class="rn">${esc(n)}</div><span class="tier t-${m.t}">${T[m.t].stars}</span></div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span>${fastInline}</div><div class="tags">${tagsOrder}</div><div class="bh">${baseText(m,lv)}</div></div></div>`;
+      const imageHtml=image
+        ? `<button class="imbtn" type="button" data-ride="${attr(n)}" onclick="openImageViewer(this.dataset.ride,event)" aria-label="Открыть фото ${attr(n)}"><img src="${image.thumb}" alt="${attr(n)}" loading="lazy"></button>`
+        : `<div class="imph" aria-hidden="true">No image</div>`;
+      return `<div class="rc ${pk(m.p)}" data-ride="${attr(n)}" onclick="focusOnMap(this.dataset.ride)" style="cursor:pointer"><div class="media">${imageHtml}</div><div class="bd"><div class="hd"><div class="rn">${esc(n)}</div><span class="tier t-${m.t}">${T[m.t].stars}</span></div><div class="rm"><span>${m.l}</span><span>·</span><span>${m.tp}</span>${fastInline}</div><div class="tags">${tagsOrder}</div><div class="bh">${baseText(m,lv)}</div></div></div>`;
     };
     (S.pf==="all"?["d","s"]:[S.pf]).forEach(k=>{
       let rides=bp(k);if(!rides.length)return;
@@ -2460,6 +2556,7 @@ function draw(){
   }
 
   h+=renderWeatherModal();
+  h+=renderImageViewer();
   $.innerHTML=h;
 
   if(S.weatherOpen)attachWeatherDrag();
@@ -2482,6 +2579,9 @@ initModalInteractionLock();
 document.addEventListener("contextmenu",e=>{
   if(e.target.closest("input,textarea,[contenteditable]"))return;
   e.preventDefault();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&S.imageViewer)closeImageViewer();
 });
 </script>
 </body>

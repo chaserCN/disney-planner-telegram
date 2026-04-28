@@ -464,7 +464,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public"), {
   setHeaders: (res, filePath) => {
     if (/\.(jpg|jpeg|png|webp|svg|gif)$/i.test(filePath)) {
-      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+      res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
     }
   }
 }));
