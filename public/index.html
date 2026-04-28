@@ -227,14 +227,13 @@
   .mv-tools { position:absolute; right:8px; top:8px; display:flex; gap:6px; z-index:3; }
   .mv-tool { padding:7px 10px; border-radius:8px; border:none; background:rgba(0,0,0,.65); color:#fff; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
   .mv-popup { position:absolute; width:292px; max-width:calc(100% - 16px); padding:12px; background:linear-gradient(180deg, rgba(19,24,39,.98), rgba(15,23,42,.98)); border-radius:16px; box-shadow:0 10px 26px rgba(0,0,0,.55); z-index:10; border:1px solid rgba(148,163,184,.12); pointer-events:auto; }
-  .mv-popup .cl { position:absolute; top:4px; right:6px; width:30px; height:30px; border-radius:50%; border:none; background:transparent; color:var(--mu); font-size:22px; cursor:pointer; line-height:1; }
   .mv-popup .ph { width:100%; aspect-ratio:16/10; border-radius:12px; overflow:hidden; margin-bottom:10px; }
   .mv-popup .phb, .mv-popup .php { width:100%; height:100%; border:none; padding:0; background:#0f172a; display:flex; align-items:center; justify-content:center; }
   .mv-popup .phb { position:relative; cursor:zoom-in; }
-  .mv-popup .phb img { width:100%; height:100%; object-fit:contain; display:block; background:#0f172a; }
+  .mv-popup .phb img { width:100%; height:100%; object-fit:cover; display:block; background:#0f172a; }
   .mv-popup .phb::after { content:"⛶"; position:absolute; right:8px; bottom:8px; width:22px; height:22px; border-radius:50%; background:rgba(15,23,42,.78); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
   .mv-popup .php { border:1px dashed rgba(148,163,184,.25); border-radius:12px; color:#94a3b8; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(15,23,42,.92)); }
-  .mv-popup .tp { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; padding-right:28px; }
+  .mv-popup .tp { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
   .mv-popup .tp .nm { flex:1; min-width:0; font-weight:800; font-size:15px; line-height:1.25; }
   .mv-popup .tp .tier { margin-left:auto; flex-shrink:0; }
   .mv-popup .sb { font-size:12px; color:var(--mu); display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; line-height:1.4; }
@@ -299,7 +298,7 @@ const RIDE_IMAGES = {
   "Autopia": { thumb:"/ride-images/thumbs/autopia.jpg", full:"/ride-images/full/autopia.jpg" },
   "Avengers Assemble": { thumb:"/ride-images/thumbs/avengers-assemble.jpg", full:"/ride-images/full/avengers-assemble.jpg" },
   "Big Thunder Mountain": { thumb:"/ride-images/thumbs/big-thunder-mountain.jpg", full:"/ride-images/full/big-thunder-mountain.jpg" },
-  "Snow White and the Seven Dwarfs": { thumb:"/ride-images/thumbs/snow-white-and-the-seven-dwarfs.jpg", full:"/ride-images/full/snow-white-and-the-seven-dwarfs.jpg" },
+  "Pinocchio": { thumb:"/ride-images/thumbs/pinocchio.jpg", full:"/ride-images/full/pinocchio.jpg" },
   "Buzz Lightyear Laser Blast": { thumb:"/ride-images/thumbs/buzz-lightyear-laser-blast.jpg", full:"/ride-images/full/buzz-lightyear-laser-blast.jpg" },
   "Cars Road Trip": { thumb:"/ride-images/thumbs/cars-road-trip.jpg", full:"/ride-images/full/cars-road-trip.jpg" },
   "Crush's Coaster": { thumb:"/ride-images/thumbs/crushs-coaster.jpg", full:"/ride-images/full/crushs-coaster.jpg" },
@@ -1393,7 +1392,6 @@ function ensurePopupDom(){
   popup.className = "mv-popup down";
   popup.style.display = "none";
   popup.innerHTML = `<span class="ar"></span>
-    <button class="cl" data-close="1">×</button>
     <div class="ph"></div>
     <div class="tp"><div class="nm"></div><span class="tier"></span></div>
     <div class="sb"><span class="pk"></span><span>·</span><span class="ld"></span><span>·</span><span class="ty"></span></div>
@@ -1870,7 +1868,6 @@ function initTileMap(){
     tileTapStart = null;
     if(!tap) return;
     if(target.closest(".mv-tool") || target.closest(".tm-zoom") || target.closest(".tm-compass")) return;
-    if(target.closest("[data-close]")) { mvClosePopup(); return; }
     const popupPhoto = target.closest(".phb");
     if(popupPhoto){
       const name = popupPhoto.getAttribute("data-ride");
@@ -2438,10 +2435,8 @@ function mvInit(){
   wrap.addEventListener("pointerup",e=>{
     if(!pts.has(e.pointerId))return;
     if(!moved&&pts.size===1){
-      const closeBtn=e.target.closest("[data-close]");
       const popup=e.target.closest(".mv-popup");
-      if(closeBtn){mvClosePopup()}
-      else if(downTarget){
+      if(downTarget){
         const name=downTarget.getAttribute("data-ride");
         if(name)mvPickRide(name);
       } else if(!popup){

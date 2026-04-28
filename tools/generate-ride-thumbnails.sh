@@ -52,7 +52,7 @@ build_asset() {
 
 build_asset "Autopia.jpg" "autopia" "Center" "+0" "+24"
 build_asset "Big Thunder Mountain.jpg" "big-thunder-mountain" "Center" "+54" "+0"
-build_asset "Blanche-Neige et les Sept Nains.jpg" "snow-white-and-the-seven-dwarfs" "Center" "+16" "+0"
+build_asset "pinocchio.jpg" "pinocchio" "Center" "+0" "+0"
 build_asset "Buzz Lightyear Laser Blast.jpeg" "buzz-lightyear-laser-blast" "Center" "+0" "+12"
 build_asset "Indiana Jones and the Temple of Peril.jpg" "indiana-jones" "Center" "-18" "+14"
 build_asset "hyperspace mountain.jpg" "hyperspace-mountain" "Center" "+28" "+16"
