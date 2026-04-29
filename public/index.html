@@ -2497,13 +2497,32 @@ function centerRideOnMap(geo, screenYRatio=.5){
   TILE_MAP.center = unprojectWorld(markerWorld.x - local.x, clamp(markerWorld.y - local.y, 0, size), z);
 }
 
+function rideScreenYOnMap(geo, wrap){
+  if(!wrap)return null;
+  const z=TILE_MAP.zoom;
+  const markerWorld=projectLatLng(geo.lat, geo.lng, z);
+  const centerWorld=projectLatLng(TILE_MAP.center.lat, TILE_MAP.center.lng, z);
+  const dx=markerWorld.x-centerWorld.x;
+  const dy=markerWorld.y-centerWorld.y;
+  const rot=(TILE_MAP.rotation||0)*Math.PI/180;
+  const sx=dx*Math.cos(rot)-dy*Math.sin(rot);
+  const sy=dx*Math.sin(rot)+dy*Math.cos(rot);
+  return wrap.clientHeight/2+sy;
+}
+
 function focusOnMap(name){
   const geo = rideGeoByName(name);
   if(!geo)return;
   set({tab:"map",msel:name,pf:"all",mrt:"all"});
   requestAnimationFrame(()=>{
+    const wrap=document.getElementById("mv-wrap");
     centerRideOnMap(geo, .75);
     clampCenterToCrop();
+    const y=rideScreenYOnMap(geo, wrap);
+    if(Number.isFinite(y) && wrap && y < wrap.clientHeight * .68){
+      centerRideOnMap(geo, .2);
+      clampCenterToCrop();
+    }
     scheduleTileRender();
   });
 }
