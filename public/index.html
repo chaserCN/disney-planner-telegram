@@ -2483,12 +2483,26 @@ function mvPickRide(name){
   if(tg)tg.HapticFeedback?.impactOccurred?.("light");
 }
 
+function centerRideOnMap(geo, screenYRatio=.5){
+  const wrap=document.getElementById("mv-wrap");
+  const z=TILE_MAP.zoom;
+  const markerWorld=projectLatLng(geo.lat, geo.lng, z);
+  if(!wrap){
+    TILE_MAP.center = { lat: geo.lat, lng: geo.lng };
+    return;
+  }
+  const targetY=wrap.clientHeight * screenYRatio;
+  const local=screenToMapDelta(0, targetY - wrap.clientHeight / 2);
+  const size=worldSize(z);
+  TILE_MAP.center = unprojectWorld(markerWorld.x - local.x, clamp(markerWorld.y - local.y, 0, size), z);
+}
+
 function focusOnMap(name){
   const geo = rideGeoByName(name);
   if(!geo)return;
   set({tab:"map",msel:name,pf:"all",mrt:"all"});
   requestAnimationFrame(()=>{
-    TILE_MAP.center = { lat: geo.lat, lng: geo.lng };
+    centerRideOnMap(geo, .75);
     clampCenterToCrop();
     scheduleTileRender();
   });
