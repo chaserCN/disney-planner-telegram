@@ -182,14 +182,15 @@
   .tips b { color:var(--tx); }
 
   /* Map view */
-  .mv-wrap { position:relative; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:hidden; background:#a3bf5d; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; margin-bottom:32px; }
+  .mv-wrap { position:relative; z-index:20; width:100%; height:calc(100vh - 220px - var(--safe-top) - var(--safe-bot)); min-height:320px; border-radius:10px; overflow:visible; background:#a3bf5d; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; margin-bottom:32px; }
+  .tm-clip { position:absolute; inset:0; overflow:hidden; border-radius:inherit; background:#a3bf5d; }
   .tm-viewport { position:absolute; left:-50%; top:-50%; width:200%; height:200%; transform-origin:50% 50%; will-change:transform; }
   .tm-tiles { position:absolute; inset:0; overflow:hidden; }
   .tm-layer { position:absolute; inset:0; }
   .tm-overlay { position:absolute; inset:0; pointer-events:auto; }
-  .tm-marker-layer, .tm-user-layer, .tm-popup-layer { position:absolute; inset:0; }
+  .tm-marker-layer, .tm-user-layer { position:absolute; inset:0; }
   .tm-user-layer { pointer-events:none; }
-  .tm-popup-layer { pointer-events:none; }
+  .tm-popup-layer { position:absolute; inset:0; z-index:30; overflow:visible; pointer-events:none; }
   .tm-popup-layer .mv-popup { pointer-events:auto; }
   .tm-tile { position:absolute; width:512px; height:512px; object-fit:cover; image-rendering:auto; }
   .tm-pt { position:absolute; transform:translate(-50%,-50%); font-size:10px; line-height:1; cursor:pointer; background:transparent; }
@@ -407,7 +408,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,mapPopupHidePhoto:false,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null,imageViewer:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null,imageViewer:null};
 const weatherLocalParts=s=>{
   const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s||"");
   if(!m)return null;
@@ -1115,7 +1116,8 @@ function ensureTileDom(root){
 }
 
 function ensureOverlayDom(root){
-  if(OVERLAY_DOM.root === root && OVERLAY_DOM.markerLayer && OVERLAY_DOM.userLayer && OVERLAY_DOM.popupLayer) return;
+  const popupLayer = document.getElementById("tm-popup-layer");
+  if(OVERLAY_DOM.root === root && OVERLAY_DOM.markerLayer && OVERLAY_DOM.userLayer && OVERLAY_DOM.popupLayer === popupLayer) return;
   OVERLAY_DOM.root = root;
   OVERLAY_DOM.markerCache = new Map();
   OVERLAY_DOM.userArrow = null;
@@ -1137,9 +1139,7 @@ function ensureOverlayDom(root){
   markerLayer.className = "tm-marker-layer";
   const userLayer = document.createElement("div");
   userLayer.className = "tm-user-layer";
-  const popupLayer = document.createElement("div");
-  popupLayer.className = "tm-popup-layer";
-  root.append(markerLayer, userLayer, popupLayer);
+  root.append(markerLayer, userLayer);
   OVERLAY_DOM.markerLayer = markerLayer;
   OVERLAY_DOM.userLayer = userLayer;
   OVERLAY_DOM.popupLayer = popupLayer;
@@ -1496,6 +1496,8 @@ function renderTileMap(){
   const visibleMaxX = visibleMinX + wrap.clientWidth;
   const visibleMinY = (vh - wrap.clientHeight) / 2;
   const visibleMaxY = visibleMinY + wrap.clientHeight;
+  const wrapRect = wrap.getBoundingClientRect();
+  const popupMinY = -Math.max(0, wrapRect.top - 8);
   const zoom = TILE_MAP.zoom;
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const dprBoost = Math.max(0, Math.round(Math.log2(dpr)));
@@ -1616,6 +1618,13 @@ function renderTileMap(){
       const px = world.x - topLeftX;
       const py = world.y - topLeftY;
       if(px >= -40 && px <= vw + 40 && py >= -40 && py <= vh + 40){
+        const rotRad = (TILE_MAP.rotation || 0) * Math.PI / 180;
+        const dx = px - vw / 2;
+        const dy = py - vh / 2;
+        const screenPoint = {
+          x: vw / 2 + dx * Math.cos(rotRad) - dy * Math.sin(rotRad) - visibleMinX,
+          y: vh / 2 + dx * Math.sin(rotRad) + dy * Math.cos(rotRad) - visibleMinY
+        };
         const lv=liveRide(n,m);
         const slv=singleRide(n,m);
         const paid=paidRide(n,m);
@@ -1626,20 +1635,20 @@ function renderTileMap(){
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
         const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
         const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
-        const image=S.mapPopupHidePhoto?null:rideImageAsset(n);
+        const image=rideImageAsset(n);
         const photoHtml=image
           ? `<div class="phb"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></div>`
-          : (S.mapPopupHidePhoto?"":`<div class="php" aria-hidden="true">No image</div>`);
+          : `<div class="php" aria-hidden="true">No image</div>`;
         const popupW=Math.min(292, wrap.clientWidth-16);
         const gap=16;
         popupState = {
           preferredWidth: popupW,
-          anchorX: px,
-          anchorY: py,
-          viewportMinX: visibleMinX,
-          viewportMaxX: visibleMaxX,
-          viewportMinY: visibleMinY,
-          viewportMaxY: visibleMaxY,
+          anchorX: screenPoint.x,
+          anchorY: screenPoint.y,
+          viewportMinX: 0,
+          viewportMaxX: wrap.clientWidth,
+          viewportMinY: popupMinY,
+          viewportMaxY: wrap.clientHeight,
           gap,
           photoHtml,
           name: n,
@@ -1656,7 +1665,7 @@ function renderTileMap(){
       }
     }
   }
-  syncPopup(popupState, counterRotate);
+  syncPopup(popupState, "");
 
   viewport.style.transform = TILE_MAP.rotation ? `rotate(${TILE_MAP.rotation}deg)` : "";
   updateCompass();
@@ -2470,14 +2479,14 @@ function mvInit(){
 }
 
 function mvPickRide(name){
-  set({msel:S.msel===name?null:name,mapPopupHidePhoto:false}, { silent: true });
+  set({msel:S.msel===name?null:name}, { silent: true });
   if(tg)tg.HapticFeedback?.impactOccurred?.("light");
 }
 
 function focusOnMap(name){
   const geo = rideGeoByName(name);
   if(!geo)return;
-  set({tab:"map",msel:name,mapPopupHidePhoto:true,pf:"all",mrt:"all"});
+  set({tab:"map",msel:name,pf:"all",mrt:"all"});
   requestAnimationFrame(()=>{
     TILE_MAP.center = { lat: geo.lat, lng: geo.lng };
     clampCenterToCrop();
@@ -2487,7 +2496,7 @@ function focusOnMap(name){
 
 function mvClosePopup(e){
   if(e)e.stopPropagation();
-  set({msel:null,mapPopupHidePhoto:false}, { silent: true });
+  set({msel:null}, { silent: true });
 }
 
 const TIER_STARS={S:5,A:4,B:3,C:2};
@@ -2627,7 +2636,7 @@ function draw(){
     h+=`<div class="mv-wrap" id="mv-wrap">`;
     h+=`<div class="mv-tools"><button class="mv-tool" onclick="event.stopPropagation();requestUserLocation()">${S.geoBusy?"Ищем...":"Где я"}</button></div>`;
     if(S.geoMsg)h+=`<div class="mv-legend" style="top:40px;left:auto;right:8px">${esc(S.geoMsg)}</div>`;
-    h+=`<div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div>`;
+    h+=`<div class="tm-clip"><div class="tm-viewport"><div class="tm-tiles" id="tm-tiles"></div><div class="tm-overlay" id="tm-overlay"></div></div></div><div class="tm-popup-layer" id="tm-popup-layer"></div>`;
     h+=`<div class="tm-zoom"><button type="button" onclick="zoomInTileMap()">+</button><button type="button" onclick="zoomOutTileMap()">−</button></div>`;
     h+=`<button class="tm-compass" id="tm-compass" type="button" onclick="event.stopPropagation();resetMapRotation()" aria-label="Развернуть на север" style="display:none"><svg viewBox="0 0 24 24"><polygon class="n" points="12,2 16,12 12,10 8,12"/><polygon class="s" points="12,22 16,12 12,14 8,12"/></svg></button>`;
     h+=`</div>`;
