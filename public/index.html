@@ -229,9 +229,8 @@
   .mv-popup { position:absolute; width:292px; max-width:calc(100% - 16px); padding:12px; background:linear-gradient(180deg, rgba(19,24,39,.98), rgba(15,23,42,.98)); border-radius:16px; box-shadow:0 10px 26px rgba(0,0,0,.55); z-index:10; border:1px solid rgba(148,163,184,.12); pointer-events:auto; }
   .mv-popup .ph { width:100%; aspect-ratio:16/10; border-radius:12px; overflow:hidden; margin-bottom:10px; }
   .mv-popup .phb, .mv-popup .php { width:100%; height:100%; border:none; padding:0; background:#0f172a; display:flex; align-items:center; justify-content:center; }
-  .mv-popup .phb { position:relative; cursor:zoom-in; }
+  .mv-popup .phb { position:relative; }
   .mv-popup .phb img { width:100%; height:100%; object-fit:cover; display:block; background:#0f172a; }
-  .mv-popup .phb::after { content:"⛶"; position:absolute; right:8px; bottom:8px; width:22px; height:22px; border-radius:50%; background:rgba(15,23,42,.78); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
   .mv-popup .php { border:1px dashed rgba(148,163,184,.25); border-radius:12px; color:#94a3b8; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(15,23,42,.92)); }
   .mv-popup .tp { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
   .mv-popup .tp .nm { flex:1; min-width:0; font-weight:800; font-size:15px; line-height:1.25; }
@@ -546,10 +545,6 @@ function openImageViewer(name,e){
   const image = rideImageAsset(name);
   if(!image)return;
   set({imageViewer:{name, ...image}});
-}
-function openMapPopupImage(name,e){
-  openImageViewer(name,e);
-  set({msel:null}, { silent: true });
 }
 function closeImageViewer(e){
   if(e)e.stopPropagation();
@@ -1619,7 +1614,7 @@ function renderTileMap(){
         const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
         const image=rideImageAsset(n);
         const photoHtml=image
-          ? `<button class="phb" type="button" data-ride="${attr(n)}" onclick="openMapPopupImage(this.dataset.ride,event)" aria-label="Открыть фото ${attr(n)}"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></button>`
+          ? `<div class="phb"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></div>`
           : `<div class="php" aria-hidden="true">No image</div>`;
         const popupW=Math.min(292, wrap.clientWidth-16);
         const gap=16;
@@ -1871,12 +1866,7 @@ function initTileMap(){
     tileTapStart = null;
     if(!tap) return;
     if(target.closest(".mv-tool") || target.closest(".tm-zoom") || target.closest(".tm-compass")) return;
-    const popupPhoto = target.closest(".phb");
-    if(popupPhoto){
-      const name = popupPhoto.getAttribute("data-ride");
-      if(name) openMapPopupImage(name);
-      return;
-    }
+    if(target.closest(".mv-popup")) { mvClosePopup(); return; }
     const marker = target.closest(".tm-pt");
     if(marker){
       const name = marker.getAttribute("data-ride");
@@ -2439,10 +2429,12 @@ function mvInit(){
     if(!pts.has(e.pointerId))return;
     if(!moved&&pts.size===1){
       const popup=e.target.closest(".mv-popup");
-      if(downTarget){
+      if(popup){
+        mvClosePopup();
+      } else if(downTarget){
         const name=downTarget.getAttribute("data-ride");
         if(name)mvPickRide(name);
-      } else if(!popup){
+      } else {
         mvClosePopup();
       }
     }
