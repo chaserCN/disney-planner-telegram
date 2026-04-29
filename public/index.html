@@ -260,12 +260,16 @@
   .ptr.spn .ic { animation:ptr-spin .8s linear infinite; }
   @keyframes ptr-spin { to { transform:rotate(360deg) } }
 
-  .imo { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:calc(16px + var(--safe-top)) 12px calc(16px + var(--safe-bot)); background:rgba(2,6,23,.92); backdrop-filter:blur(10px); }
-  .imo .panel { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .imo { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:calc(54px + var(--safe-top)) 12px calc(16px + var(--safe-bot)); background:rgba(2,6,23,.86); backdrop-filter:blur(8px); animation:imoFadeIn .18s ease-out; }
+  .imo .panel { position:relative; display:flex; align-items:center; justify-content:center; max-width:min(100%, 980px); max-height:100%; animation:imoPopOpen .24s cubic-bezier(.2,.85,.25,1); transform-origin:center; }
   .imo .panel.dragging { transition:none; }
-  .imo img { max-width:min(100%, 980px); max-height:100%; border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.45); object-fit:contain; background:#020617; }
-  .imo .cap { position:absolute; left:0; right:0; bottom:0; text-align:center; font-size:13px; font-weight:700; color:#cbd5e1; padding:12px 56px 2px; }
-  .imo .close { position:absolute; top:0; right:0; width:40px; height:40px; border:none; border-radius:50%; background:rgba(255,255,255,.10); color:#fff; font-size:26px; line-height:1; cursor:pointer; }
+  .imo img { max-width:100%; max-height:calc(100vh - 72px - var(--safe-top) - var(--safe-bot)); border-radius:18px; box-shadow:0 24px 60px rgba(0,0,0,.45); object-fit:contain; background:#020617; display:block; }
+  .imo .close { position:absolute; top:8px; right:8px; z-index:2; width:34px; height:34px; border:none; border-radius:50%; background:rgba(15,23,42,.78); color:#fff; font-size:24px; line-height:1; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.35); backdrop-filter:blur(8px); }
+  @keyframes imoFadeIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes imoPopOpen {
+    from { opacity:.78; transform:translate(calc(var(--im-x, 50vw) - 50vw), calc(var(--im-y, 50vh) - 50vh)) scale(var(--im-scale, .78)); }
+    to { opacity:1; transform:translate(0,0) scale(1); }
+  }
 
   @media (max-width: 390px) {
     .rc { gap:12px; padding:11px; }
@@ -544,7 +548,15 @@ function openImageViewer(name,e){
   if(e)e.stopPropagation();
   const image = rideImageAsset(name);
   if(!image)return;
-  set({imageViewer:{name, ...image}});
+  const rect=e?.currentTarget?.getBoundingClientRect?.();
+  const origin=rect
+    ? {
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2),
+        scale: Math.max(.18, Math.min(.72, rect.width / Math.max(1, Math.min(window.innerWidth - 24, 980))))
+      }
+    : null;
+  set({imageViewer:{name, ...image, origin}});
 }
 function closeImageViewer(e){
   if(e)e.stopPropagation();
@@ -554,11 +566,12 @@ function closeImageViewer(e){
 function renderImageViewer(){
   const image=S.imageViewer;
   if(!image)return "";
-  return `<div class="imo" onclick="closeImageViewer()">
+  const origin=image.origin||{};
+  const style=`--im-x:${Number.isFinite(origin.x)?origin.x:window.innerWidth/2}px;--im-y:${Number.isFinite(origin.y)?origin.y:window.innerHeight/2}px;--im-scale:${Number.isFinite(origin.scale)?origin.scale:.78}`;
+  return `<div class="imo" style="${style}" onclick="closeImageViewer()">
     <div class="panel" onclick="closeImageViewer(event)">
       <button class="close" type="button" onclick="closeImageViewer(event)" aria-label="Закрыть">×</button>
       <img src="${image.full}" alt="${attr(image.name)}">
-      <div class="cap">${esc(image.name)}</div>
     </div>
   </div>`;
 }
