@@ -1085,12 +1085,15 @@ function getMapMarkerEntries(){
   if(MAP_MARKER_ENTRIES && MAP_MARKER_COORDS_REF === S.coords) return MAP_MARKER_ENTRIES;
   MAP_MARKER_COORDS_REF = S.coords;
   MAP_MARKER_ENTRIES = Object.entries(R)
-    .map(([name, meta])=>{
+    .map(([name, meta], idx)=>{
       const geo = rideGeoByName(name);
-      return geo ? { name, meta, geo } : null;
+      return geo ? { name, meta, geo, idx } : null;
     })
     .filter(Boolean)
-    .sort((a, b)=>"CBAS".indexOf(a.meta.t) - "CBAS".indexOf(b.meta.t));
+    .sort((a, b)=>{
+      const tierDelta = "CBAS".indexOf(a.meta.t) - "CBAS".indexOf(b.meta.t);
+      return tierDelta || b.idx - a.idx;
+    });
   return MAP_MARKER_ENTRIES;
 }
 
