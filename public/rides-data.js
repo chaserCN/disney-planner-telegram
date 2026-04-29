@@ -15,6 +15,7 @@
     "Star Tours":                 {id:9,t:"B",tp:"3D-полёт",p:"d",l:"Discoveryland",bh:[10,11,14,20],ap:30,i:"⭐",sr:0,pa:1},
     "Orbitron":                   {id:7,t:"C",tp:"карусель",p:"d",l:"Discoveryland",bh:[10,11,20],ap:30,i:"🛸",sr:0,pa:1},
     "Autopia":                    {id:4,t:"C",tp:"вождение",p:"d",l:"Discoveryland",bh:[10,11,19,20],ap:35,i:"🏎️",sr:0,pa:1,glow:1},
+    "Dumbo":                      {id:18,t:"C",tp:"карусель",p:"d",l:"Fantasyland",bh:[10,11,12,13],ap:30,i:"🐘",sr:0,pa:0},
     "Pinocchio":                  {id:23,t:"C",tp:"сюжет",p:"d",l:"Fantasyland",bh:[10,11,20],ap:30,i:"🪵",sr:0,pa:0},
     "It's a Small World":         {id:19,t:"C",tp:"сюжет лодки",p:"d",l:"Fantasyland",bh:[12,13,14,15],ap:20,i:"🌍",sr:0,pa:0,noGlow:1},
     "Crush's Coaster":            {id:32,srid:7277,t:"S",tp:"горки",p:"s",l:"World of Pixar",bh:[9,21],ap:90,i:"🐢",sr:1,pa:1,glow:1},
@@ -24,6 +25,8 @@
     "Spider-Man W.E.B.":          {id:10845,srid:10846,t:"B",tp:"интерактив",p:"s",l:"Avengers Campus",bh:[10,14,20],ap:35,i:"🕷️",sr:1,pa:0},
     "RC Racer":                   {id:34,srid:7280,t:"B",tp:"горки",p:"s",l:"World of Pixar",bh:[10,11,19],ap:30,i:"🏁",sr:1,pa:0},
     "Toy Soldiers":               {id:35,srid:7281,t:"B",tp:"башня",p:"s",l:"World of Pixar",bh:[10,11,15,16],ap:25,i:"🪖",sr:1,pa:0},
+    "Slinky":                     {id:36,t:"C",tp:"карусель",p:"s",l:"World of Pixar",bh:[10,11,12,13],ap:25,i:"🐕",sr:0,pa:0},
+    "Carpet":                     {id:33,t:"C",tp:"карусель",p:"s",l:"Production Courtyard",bh:[10,11,12,13],ap:25,i:"🧞",sr:0,pa:0},
     "Cars Road Trip":             {id:29,t:"C",tp:"прогулка",p:"s",l:"World of Pixar",bh:[10,11,14,15],ap:30,i:"🚗",sr:0,pa:1},
   };
 

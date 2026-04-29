@@ -47,6 +47,7 @@ const THEMEPARKS_ALIASES = {
   "It's a Small World": ["it's a small world"],
   "Autopia": ["Autopia"],
   "Orbitron": ["Orbitron"],
+  "Dumbo": ["Dumbo the Flying Elephant"],
   "Crush's Coaster": ["Crush's Coaster"],
   "Tower of Terror": ["The Twilight Zone Tower of Terror"],
   "Ratatouille": ["Ratatouille"],
@@ -54,6 +55,8 @@ const THEMEPARKS_ALIASES = {
   "RC Racer": ["RC Racer"],
   "Spider-Man W.E.B.": ["Spider-Man W.E.B. Adventure"],
   "Toy Soldiers": ["Toy Soldiers Parachute Drop"],
+  "Slinky": ["Slinky® Dog Zigzag Spin", "Slinky Dog Zigzag Spin"],
+  "Carpet": ["Les Tapis Volants - Flying Carpets Over Agrabah®", "Les Tapis Volants - Flying Carpets Over Agrabah"],
   "Cars Road Trip": ["Cars ROAD TRIP"]
 };
 let themeParksLiveCache = null;
