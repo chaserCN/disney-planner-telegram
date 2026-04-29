@@ -403,7 +403,7 @@ const baseText=(m,lv)=>{
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
-let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null,imageViewer:null};
+let S = {tab:"ranking",pf:"all",si:0,live:null,liveSource:null,liveFallback:false,base:null,baseType:null,ld:true,bd:false,err:null,upd:null,coords:{},mtf:"all",mrt:"all",msel:null,mapPopupHidePhoto:false,rsort:"tier",sub:null,userPos:null,userHeading:null,geoBusy:false,geoMsg:null,weather:null,weatherOpen:false,weatherDayIndex:0,cropBounds:null,imageViewer:null};
 const weatherLocalParts=s=>{
   const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s||"");
   if(!m)return null;
@@ -1426,6 +1426,7 @@ function syncPopup(popupState, counterRotate){
   popup.style.transform = counterRotate || "";
   popup.style.transformOrigin = "50% 100%";
   OVERLAY_DOM.popupPhoto.innerHTML = popupState.photoHtml;
+  OVERLAY_DOM.popupPhoto.style.display = popupState.photoHtml ? "" : "none";
   OVERLAY_DOM.popupName.textContent = popupState.name;
   OVERLAY_DOM.popupPark.textContent = popupState.park;
   OVERLAY_DOM.popupLand.textContent = popupState.land;
@@ -1612,10 +1613,10 @@ function renderTileMap(){
         else{const w=lv.wait_time;badge=`<span class="lv" style="background:${wc(w)};color:${w>40?'#fff':'#0f172a'}">${w===0?'walk-on':`${w} мин`}</span>`}
         const singleBadge=slv&&slv.is_open?`<span class="lv tg-s">В одиночку: ${singleWaitText(slv.wait_time)} мин</span>`:'';
         const fastTag=hasPremierAccess(n,m)?`<span class="tg-p${paid&&!paid.available?' so':''}">${paidFull(paid)}</span>`:'';
-        const image=rideImageAsset(n);
+        const image=S.mapPopupHidePhoto?null:rideImageAsset(n);
         const photoHtml=image
           ? `<div class="phb"><img src="${image.full}" alt="${attr(n)}" loading="lazy"></div>`
-          : `<div class="php" aria-hidden="true">No image</div>`;
+          : (S.mapPopupHidePhoto?"":`<div class="php" aria-hidden="true">No image</div>`);
         const popupW=Math.min(292, wrap.clientWidth-16);
         const gap=16;
         popupState = {
@@ -2456,14 +2457,14 @@ function mvInit(){
 }
 
 function mvPickRide(name){
-  set({msel:S.msel===name?null:name}, { silent: true });
+  set({msel:S.msel===name?null:name,mapPopupHidePhoto:false}, { silent: true });
   if(tg)tg.HapticFeedback?.impactOccurred?.("light");
 }
 
 function focusOnMap(name){
   const geo = rideGeoByName(name);
   if(!geo)return;
-  set({tab:"map",msel:name,pf:"all",mrt:"all"});
+  set({tab:"map",msel:name,mapPopupHidePhoto:true,pf:"all",mrt:"all"});
   requestAnimationFrame(()=>{
     TILE_MAP.center = { lat: geo.lat, lng: geo.lng };
     clampCenterToCrop();
@@ -2473,7 +2474,7 @@ function focusOnMap(name){
 
 function mvClosePopup(e){
   if(e)e.stopPropagation();
-  set({msel:null}, { silent: true });
+  set({msel:null,mapPopupHidePhoto:false}, { silent: true });
 }
 
 const TIER_STARS={S:5,A:4,B:3,C:2};
