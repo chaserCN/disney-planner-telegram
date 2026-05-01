@@ -778,7 +778,9 @@ app.get("/api/weather", async (req, res) => {
 });
 
 app.get("/api/baseline", (req, res) => {
-  const requested = String(req.query.day_type || getParisDateParts(new Date()).dayType);
+  const parisDayType = getParisDateParts(new Date()).dayType;
+  const defaultDayType = parisDayType === "weekday" ? "weekday" : "peak";
+  const requested = String(req.query.day_type || defaultDayType);
   const dayType = ["weekday", "weekend", "holiday", "peak"].includes(requested) ? requested : "weekday";
   const groups = new Map();
   const rows = dayType === "peak"
