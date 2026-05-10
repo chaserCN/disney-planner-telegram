@@ -772,8 +772,25 @@ app.get("/api/weather", async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error("Failed to fetch weather:", err.message);
-    if (weatherCache.data) return res.json(weatherCache.data);
-    res.status(502).json({ error: "weather_unavailable" });
+    const staleAgeMs = Date.now() - weatherCache.fetchedAt;
+    const retryAfterSeconds = Number.isFinite(err.retryAfterMs) ? Math.ceil(err.retryAfterMs / 1000) : null;
+    if (weatherCache.data && staleAgeMs <= WEATHER_STALE_FALLBACK_MS) {
+      res.set("Cache-Control", "no-store");
+      return res.json({
+        ...weatherCache.data,
+        stale: true,
+        staleAgeMinutes: Math.round(staleAgeMs / 60000),
+        retryAfterSeconds,
+        error: "weather_refresh_failed"
+      });
+    }
+    res.set("Cache-Control", "no-store");
+    res.status(502).json({
+      error: "weather_unavailable",
+      staleObservedAt: weatherCache.data?.observedAt || null,
+      staleAgeMinutes: weatherCache.data ? Math.round(staleAgeMs / 60000) : null,
+      retryAfterSeconds
+    });
   }
 });
 
@@ -964,18 +981,71 @@ function blendedDailyPrecipitationRisk(hours) {
 // Use a point between Disneyland Park and Walt Disney Studios so Open-Meteo
 // resolves to a grid cell that better represents the full resort.
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8699&longitude=2.7776&current=temperature_2m,weather_code,precipitation&hourly=temperature_2m,precipitation_probability,weather_code&daily=sunrise,sunset,temperature_2m_min,temperature_2m_max,precipitation_probability_max&timezone=Europe%2FParis";
-const WEATHER_TTL_MS = 10 * 60 * 1000;
+const WEATHER_TTL_MS = 30 * 60 * 1000;
+const WEATHER_STALE_FALLBACK_MS = 2 * 60 * 60 * 1000;
+const WEATHER_RATE_LIMIT_BACKOFF_MS = 30 * 60 * 1000;
 let weatherCache = { data: null, fetchedAt: 0 };
+let weatherFetchPromise = null;
+let weatherBackoffUntil = 0;
+
+function parseRetryAfterMs(value) {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+
+  const retryAt = Date.parse(value);
+  if (!Number.isFinite(retryAt)) return null;
+  return Math.max(0, retryAt - Date.now());
+}
 
 async function getWeather() {
   if (weatherCache.data && Date.now() - weatherCache.fetchedAt <= WEATHER_TTL_MS) {
     return weatherCache.data;
   }
+  if (weatherFetchPromise) {
+    return weatherFetchPromise;
+  }
+  if (Date.now() < weatherBackoffUntil) {
+    const retryAfterMs = weatherBackoffUntil - Date.now();
+    const err = new Error(`Open-Meteo backoff active (${Math.ceil(retryAfterMs / 1000)}s)`);
+    err.status = 429;
+    err.retryAfterMs = retryAfterMs;
+    throw err;
+  }
+
+  weatherFetchPromise = fetchWeatherFromProvider().finally(() => {
+    weatherFetchPromise = null;
+  });
+  return weatherFetchPromise;
+}
+
+async function fetchWeatherFromProvider() {
   const r = await fetch(WEATHER_URL);
-  if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
+  if (!r.ok) {
+    const retryAfter = r.headers.get("retry-after");
+    const retryAfterMs = parseRetryAfterMs(retryAfter);
+    const err = new Error(`Open-Meteo ${r.status}${retryAfter ? ` retry-after=${retryAfter}` : ""}`);
+    err.status = r.status;
+    err.retryAfter = retryAfter;
+    err.retryAfterMs = retryAfterMs;
+    if (r.status === 429) {
+      const backoffMs = retryAfterMs ?? WEATHER_RATE_LIMIT_BACKOFF_MS;
+      weatherBackoffUntil = Date.now() + backoffMs;
+      console.warn(
+        `Open-Meteo rate limited: retry-after=${retryAfter || "missing"}, ` +
+        `parsed=${retryAfterMs == null ? "null" : `${Math.ceil(retryAfterMs / 1000)}s`}, ` +
+        `backoff=${Math.ceil(backoffMs / 1000)}s`
+      );
+    }
+    throw err;
+  }
+  weatherBackoffUntil = 0;
   const j = await r.json();
   const paris = getParisDateParts(new Date());
   const cur = j.current || {};
+  if (typeof cur.time === "string" && cur.time.slice(0, 10) < paris.localDate) {
+    throw new Error(`Open-Meteo stale current time ${cur.time}`);
+  }
   const daily = j.daily || {};
   const hourly = j.hourly || {};
   const daysByDate = new Map();
@@ -1083,7 +1153,10 @@ async function collectWaitSamples() {
       if (w && Number.isFinite(w.code)) weatherCode = w.code;
       if (w && Number.isFinite(w.precipitation)) weatherPrecipitation = w.precipitation;
     } catch (err) {
-      console.warn("Weather fetch failed during collection:", err.message);
+      const retrySuffix = Number.isFinite(err.retryAfterMs)
+        ? `; retry in ${Math.ceil(err.retryAfterMs / 1000)}s`
+        : "";
+      console.warn(`Weather fetch failed during collection: ${err.message}${retrySuffix}`);
     }
     const samples = [];
     const livePerRideId = new Map();
