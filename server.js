@@ -984,6 +984,9 @@ const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.8699&lon
 const WEATHER_TTL_MS = 30 * 60 * 1000;
 const WEATHER_STALE_FALLBACK_MS = 2 * 60 * 60 * 1000;
 const WEATHER_RATE_LIMIT_BACKOFF_MS = 30 * 60 * 1000;
+const WEATHERAPI_KEY = process.env.WEATHERAPI_KEY || "";
+const WEATHERAPI_URL = "https://api.weatherapi.com/v1/forecast.json?key={key}&q=48.8699,2.7776&days=3&aqi=no&alerts=no";
+const WEATHER_PROVIDER = process.env.WEATHER_PROVIDER || "open-meteo";
 let weatherCache = { data: null, fetchedAt: 0 };
 let weatherFetchPromise = null;
 let weatherBackoffUntil = 0;
@@ -1005,13 +1008,6 @@ async function getWeather() {
   if (weatherFetchPromise) {
     return weatherFetchPromise;
   }
-  if (Date.now() < weatherBackoffUntil) {
-    const retryAfterMs = weatherBackoffUntil - Date.now();
-    const err = new Error(`Open-Meteo backoff active (${Math.ceil(retryAfterMs / 1000)}s)`);
-    err.status = 429;
-    err.retryAfterMs = retryAfterMs;
-    throw err;
-  }
 
   weatherFetchPromise = fetchWeatherFromProvider().finally(() => {
     weatherFetchPromise = null;
@@ -1020,6 +1016,29 @@ async function getWeather() {
 }
 
 async function fetchWeatherFromProvider() {
+  if (WEATHER_PROVIDER === "weatherapi") {
+    if (!WEATHERAPI_KEY) throw new Error("WEATHERAPI_KEY is required when WEATHER_PROVIDER=weatherapi");
+    return fetchWeatherApiWeather();
+  }
+
+  try {
+    return await fetchOpenMeteoWeather();
+  } catch (err) {
+    if (!WEATHERAPI_KEY) throw err;
+    console.warn(`Open-Meteo unavailable, trying WeatherAPI.com fallback: ${err.message}`);
+    return fetchWeatherApiWeather();
+  }
+}
+
+async function fetchOpenMeteoWeather() {
+  if (Date.now() < weatherBackoffUntil) {
+    const retryAfterMs = weatherBackoffUntil - Date.now();
+    const err = new Error(`Open-Meteo backoff active (${Math.ceil(retryAfterMs / 1000)}s)`);
+    err.status = 429;
+    err.retryAfterMs = retryAfterMs;
+    throw err;
+  }
+
   const r = await fetch(WEATHER_URL);
   if (!r.ok) {
     const retryAfter = r.headers.get("retry-after");
@@ -1109,7 +1128,92 @@ async function fetchWeatherFromProvider() {
       sunrise: todayDay.sunrise,
       sunset: todayDay.sunset,
       today: todayDay,
-      days
+      days,
+      source: "Open-Meteo"
+    },
+    fetchedAt: Date.now()
+  };
+  return weatherCache.data;
+}
+
+function weatherApiTime(value) {
+  return typeof value === "string" ? value.replace(" ", "T").slice(0, 16) : null;
+}
+
+function weatherApiAstroTime(date, value) {
+  if (typeof date !== "string" || typeof value !== "string") return null;
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(value.trim());
+  if (!m) return null;
+  let hour = Number(m[1]);
+  const minute = Number(m[2]);
+  const meridiem = m[3].toUpperCase();
+  if (meridiem === "PM" && hour !== 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function weatherApiCodeToWmo(code) {
+  if (!Number.isFinite(code)) return null;
+  if (code === 1000) return 0;
+  if (code === 1003) return 2;
+  if (code === 1006 || code === 1009) return 3;
+  if (code === 1030 || code === 1135 || code === 1147) return 45;
+  if ([1066, 1114, 1210, 1213, 1216, 1219, 1255].includes(code)) return 71;
+  if ([1222, 1225, 1258].includes(code)) return 75;
+  if ([1069, 1072, 1204, 1207, 1237, 1249, 1252, 1261, 1264].includes(code)) return 77;
+  if ([1087, 1273, 1276, 1279, 1282].includes(code)) return 95;
+  if ([1186, 1189, 1198, 1201, 1243, 1246].includes(code)) return 63;
+  return 61;
+}
+
+async function fetchWeatherApiWeather() {
+  const url = WEATHERAPI_URL.replace("{key}", encodeURIComponent(WEATHERAPI_KEY));
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`WeatherAPI.com ${r.status}`);
+  const j = await r.json();
+  if (j.error) throw new Error(`WeatherAPI.com ${j.error.code || "error"}: ${j.error.message || "unknown error"}`);
+
+  const forecastDays = Array.isArray(j.forecast?.forecastday) ? j.forecast.forecastday : [];
+  const days = forecastDays.map(day => {
+    const hours = Array.isArray(day.hour) ? day.hour.map(hour => ({
+      time: weatherApiTime(hour.time),
+      temp: Number.isFinite(hour.temp_c) ? hour.temp_c : null,
+      precipitation_probability: Number.isFinite(hour.chance_of_rain) ? hour.chance_of_rain : null,
+      code: weatherApiCodeToWmo(hour.condition?.code)
+    })).filter(hour => hour.time) : [];
+    return {
+      date: day.date,
+      sunrise: weatherApiAstroTime(day.date, day.astro?.sunrise),
+      sunset: weatherApiAstroTime(day.date, day.astro?.sunset),
+      temp_min: Number.isFinite(day.day?.mintemp_c) ? day.day.mintemp_c : null,
+      temp_max: Number.isFinite(day.day?.maxtemp_c) ? day.day.maxtemp_c : null,
+      precipitation_probability_max: Number.isFinite(day.day?.daily_chance_of_rain) ? day.day.daily_chance_of_rain : null,
+      hours
+    };
+  }).filter(day => typeof day.date === "string");
+
+  const observedAt = weatherApiTime(j.current?.last_updated);
+  const todayDay = days.find(day => day.date === observedAt?.slice(0, 10)) || days[0] || {
+    date: observedAt?.slice(0, 10) || getParisDateParts(new Date()).localDate,
+    sunrise: null,
+    sunset: null,
+    temp_min: null,
+    temp_max: null,
+    precipitation_probability_max: null,
+    hours: []
+  };
+
+  weatherCache = {
+    data: {
+      code: weatherApiCodeToWmo(j.current?.condition?.code),
+      temp: Number.isFinite(j.current?.temp_c) ? j.current.temp_c : null,
+      precipitation: Number.isFinite(j.current?.precip_mm) ? j.current.precip_mm : null,
+      observedAt,
+      sunrise: todayDay.sunrise,
+      sunset: todayDay.sunset,
+      today: todayDay,
+      days,
+      source: "WeatherAPI.com"
     },
     fetchedAt: Date.now()
   };

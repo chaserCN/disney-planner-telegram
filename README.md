@@ -14,6 +14,8 @@
 3. Добавь переменные окружения (Variables):
    - `TELEGRAM_BOT_TOKEN` = токен от BotFather
    - `APP_URL` = URL вашего Railway-деплоя (напр. `https://disney-planner-production.up.railway.app`)
+   - `WEATHERAPI_KEY` = ключ WeatherAPI.com для fallback погоды
+   - `WEATHER_PROVIDER` = `weatherapi`, если нужно сделать WeatherAPI.com основным источником вместо Open-Meteo
 4. Settings → Networking → Generate Domain
 5. Скопируй URL → вставь в `APP_URL`
 6. Railway автоматически передеплоит
