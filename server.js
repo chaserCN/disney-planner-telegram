@@ -28,6 +28,10 @@ const ALERT_DEBOUNCE_MS = 60 * 60 * 1000;
 const ALERT_BURST_WINDOW_MS = 10 * 60 * 1000;
 const ALERT_BURST_LIMIT = 3;
 const ALERT_TIER_WEIGHT = { S: 3, A: 2, B: 1 };
+const BIG_THUNDER_MOUNTAIN_ID = 25;
+const DEFAULT_CLOSURE_START_TIME = "10:00";
+const DEFAULT_CLOSURE_END_TIME = "20:00";
+const DEFAULT_CLOSURE_MAX_GAP_MINUTES = 20;
 const QUEUE_TIMES_SINGLE_RIDER_MAP = Object.fromEntries(
   Object.values(RIDES)
     .filter(meta => meta.srid)
@@ -347,6 +351,16 @@ const baselineForRide = db.prepare(`
     AND sampled_at >= datetime('now', '-120 days')
   ORDER BY wait_time
 `);
+const closureHistoryRows = db.prepare(`
+  SELECT ride_id, ride_name, sampled_at, local_date, local_time, standby_open, standby_wait, source, fallback
+  FROM ride_live_samples
+  WHERE ride_id = @rideId
+    AND local_time >= @startTime
+    AND local_time < @endTime
+    AND (@fromDate IS NULL OR local_date >= @fromDate)
+    AND (@toDate IS NULL OR local_date <= @toDate)
+  ORDER BY sampled_at
+`);
 
 const sampleCount = db.prepare("SELECT COUNT(*) AS count FROM ride_live_samples").get().count;
 console.log(`SQLite wait history: ${DB_PATH} (${sampleCount} samples)`);
@@ -358,6 +372,115 @@ function percentileFromSorted(sortedValues, p) {
   if (!sortedValues.length) return null;
   const index = Math.ceil(sortedValues.length * p) - 1;
   return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, index))];
+}
+
+function mean(values) {
+  if (!values.length) return null;
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
+}
+
+function parseLocalTimeParam(value, fallback) {
+  const text = String(value || fallback);
+  const match = text.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return fallback;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour > 23 || minute > 59) return fallback;
+  return text;
+}
+
+function minutesBetweenIso(startIso, endIso) {
+  return Math.max(0, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000));
+}
+
+function inferSampleMinutes(rows, maxGapMinutes) {
+  const gaps = [];
+  for (let i = 1; i < rows.length; i += 1) {
+    if (rows[i].local_date !== rows[i - 1].local_date) continue;
+    const gapMinutes = minutesBetweenIso(rows[i - 1].sampled_at, rows[i].sampled_at);
+    if (gapMinutes > 0 && gapMinutes <= maxGapMinutes) gaps.push(gapMinutes);
+  }
+  gaps.sort((a, b) => a - b);
+  return percentileFromSorted(gaps, 0.5) || SLOW_COLLECT_EVERY_MINUTES;
+}
+
+function buildClosureHistory(rows, options) {
+  const maxGapMs = options.maxGapMinutes * 60 * 1000;
+  const sampleMinutes = inferSampleMinutes(rows, options.maxGapMinutes);
+  const closures = [];
+  let current = null;
+  let previous = null;
+
+  const closeCurrent = (endSampledAt, endLocalTime, reason) => {
+    if (!current) return;
+    const durationMinutes = minutesBetweenIso(current.start_sampled_at, endSampledAt);
+    closures.push({
+      date: current.date,
+      ride_id: current.ride_id,
+      ride_name: current.ride_name,
+      start_sampled_at: current.start_sampled_at,
+      end_sampled_at: endSampledAt,
+      start_local_time: current.start_local_time,
+      end_local_time: endLocalTime,
+      duration_minutes: durationMinutes,
+      closed_samples: current.closed_samples,
+      first_wait: current.first_wait,
+      last_wait: current.last_wait,
+      end_reason: reason
+    });
+    current = null;
+  };
+
+  for (const row of rows) {
+    const gapMs = previous ? new Date(row.sampled_at).getTime() - new Date(previous.sampled_at).getTime() : 0;
+    if (previous && (row.local_date !== previous.local_date || gapMs > maxGapMs)) {
+      if (current) {
+        const estimatedEnd = new Date(new Date(current.last_sampled_at).getTime() + sampleMinutes * 60 * 1000).toISOString();
+        closeCurrent(estimatedEnd, null, row.local_date !== previous.local_date ? "day_ended" : "sample_gap");
+      }
+    }
+
+    if (row.standby_open === 0) {
+      if (!current) {
+        current = {
+          date: row.local_date,
+          ride_id: row.ride_id,
+          ride_name: row.ride_name,
+          start_sampled_at: row.sampled_at,
+          start_local_time: row.local_time,
+          first_wait: row.standby_wait,
+          closed_samples: 0
+        };
+      }
+      current.last_sampled_at = row.sampled_at;
+      current.last_wait = row.standby_wait;
+      current.closed_samples += 1;
+    } else if (current) {
+      closeCurrent(row.sampled_at, row.local_time, "reopened");
+    }
+
+    previous = row;
+  }
+
+  if (current) {
+    const estimatedEnd = new Date(new Date(current.last_sampled_at).getTime() + sampleMinutes * 60 * 1000).toISOString();
+    closeCurrent(estimatedEnd, null, "latest_or_window_end");
+  }
+
+  const durations = closures.map(closure => closure.duration_minutes).sort((a, b) => a - b);
+  return {
+    sample_interval_minutes: sampleMinutes,
+    summary: {
+      total_rows: rows.length,
+      closure_count: closures.length,
+      total_closed_minutes: durations.reduce((sum, value) => sum + value, 0),
+      avg_duration_minutes: mean(durations),
+      median_duration_minutes: percentileFromSorted(durations, 0.5),
+      p75_duration_minutes: percentileFromSorted(durations, 0.75),
+      max_duration_minutes: percentileFromSorted(durations, 1)
+    },
+    closures
+  };
 }
 
 function isWithinMinutesWindow(paris, startMinutes, endMinutes) {
@@ -831,6 +954,47 @@ app.get("/api/baseline", (req, res) => {
 
   res.set("Cache-Control", "public, max-age=300");
   res.json({ day_type: dayType, rides });
+});
+
+app.get("/api/history/closures/big-thunder-mountain", (req, res) => {
+  const startTime = parseLocalTimeParam(req.query.start_time, DEFAULT_CLOSURE_START_TIME);
+  const endTime = parseLocalTimeParam(req.query.end_time, DEFAULT_CLOSURE_END_TIME);
+  const fromDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.from || "")) ? String(req.query.from) : null;
+  const toDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.to || "")) ? String(req.query.to) : null;
+  const requestedMaxGap = Number(req.query.max_gap_minutes);
+  const maxGapMinutes = Number.isFinite(requestedMaxGap) && requestedMaxGap > 0
+    ? Math.min(Math.round(requestedMaxGap), 120)
+    : DEFAULT_CLOSURE_MAX_GAP_MINUTES;
+
+  if (startTime >= endTime) {
+    return res.status(400).json({ error: "start_time must be earlier than end_time" });
+  }
+
+  const ride = rideByIdIndex.get(BIG_THUNDER_MOUNTAIN_ID);
+  const rows = closureHistoryRows.all({
+    rideId: BIG_THUNDER_MOUNTAIN_ID,
+    startTime,
+    endTime,
+    fromDate,
+    toDate
+  });
+  const history = buildClosureHistory(rows, { maxGapMinutes });
+
+  res.set("Cache-Control", "no-store");
+  res.json({
+    ride: {
+      id: BIG_THUNDER_MOUNTAIN_ID,
+      name: ride ? ride.name : "Big Thunder Mountain"
+    },
+    window: {
+      start_time: startTime,
+      end_time: endTime,
+      from: fromDate,
+      to: toDate,
+      max_gap_minutes: maxGapMinutes
+    },
+    ...history
+  });
 });
 
 app.get("/api/history/status", (req, res) => {
